@@ -1,7 +1,6 @@
 <?php
 include 'select_database.php';
 
-// Таблица users
 $sql = "CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
@@ -10,7 +9,7 @@ $sql = "CREATE TABLE IF NOT EXISTS users (
 )";
 mysqli_query($conn, $sql) or die("Error creating users table: " . mysqli_error($conn));
 
-// Таблица projects
+
 $sql = "CREATE TABLE IF NOT EXISTS projects (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
@@ -19,7 +18,7 @@ $sql = "CREATE TABLE IF NOT EXISTS projects (
 )";
 mysqli_query($conn, $sql) or die("Error creating projects table: " . mysqli_error($conn));
 
-// Таблица project_members
+
 $sql = "CREATE TABLE IF NOT EXISTS project_members (
     project_id INT NOT NULL,
     user_id INT NOT NULL,
@@ -30,7 +29,7 @@ $sql = "CREATE TABLE IF NOT EXISTS project_members (
 )";
 mysqli_query($conn, $sql) or die("Error creating project_members table: " . mysqli_error($conn));
 
-// Таблица statuses
+
 $sql = "CREATE TABLE IF NOT EXISTS statuses (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
@@ -38,7 +37,7 @@ $sql = "CREATE TABLE IF NOT EXISTS statuses (
 )";
 mysqli_query($conn, $sql) or die("Error creating statuses table: " . mysqli_error($conn));
 
-// Таблица tasks
+
 $sql = "CREATE TABLE IF NOT EXISTS tasks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     project_id INT NOT NULL,
@@ -55,14 +54,14 @@ $sql = "CREATE TABLE IF NOT EXISTS tasks (
 )";
 mysqli_query($conn, $sql) or die("Error creating tasks table: " . mysqli_error($conn));
 
-// Таблица labels
+
 $sql = "CREATE TABLE IF NOT EXISTS labels (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL
 )";
 mysqli_query($conn, $sql) or die("Error creating labels table: " . mysqli_error($conn));
 
-// Таблица task_labels
+
 $sql = "CREATE TABLE IF NOT EXISTS task_labels (
     task_id INT NOT NULL,
     label_id INT NOT NULL,
@@ -72,7 +71,7 @@ $sql = "CREATE TABLE IF NOT EXISTS task_labels (
 )";
 mysqli_query($conn, $sql) or die("Error creating task_labels table: " . mysqli_error($conn));
 
-// Таблица comments
+
 $sql = "CREATE TABLE IF NOT EXISTS comments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     task_id INT NOT NULL,
@@ -84,7 +83,7 @@ $sql = "CREATE TABLE IF NOT EXISTS comments (
 )";
 mysqli_query($conn, $sql) or die("Error creating comments table: " . mysqli_error($conn));
 
-// Таблица audit_logs
+
 $sql = "CREATE TABLE IF NOT EXISTS audit_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
