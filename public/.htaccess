@@ -1,9 +1,7 @@
 RewriteEngine On
 
-# Ако файлът или директорията съществува, използвай го директно
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 
-# Пренасочва всичко към index.php с параметър url
 RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
 
