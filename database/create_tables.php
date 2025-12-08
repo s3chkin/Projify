@@ -5,9 +5,18 @@ $sql = "CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE
+    email VARCHAR(150) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL
 )";
 mysqli_query($conn, $sql) or die("Error creating users table: " . mysqli_error($conn));
+
+// Добавяне на password колона ако таблицата вече съществува без нея
+$check = "SHOW COLUMNS FROM users LIKE 'password'";
+$result = mysqli_query($conn, $check);
+if (mysqli_num_rows($result) == 0) {
+    $sql = "ALTER TABLE users ADD COLUMN password VARCHAR(255) NOT NULL AFTER email";
+    mysqli_query($conn, $sql) or die("Error adding password column: " . mysqli_error($conn));
+}
 
 
 $sql = "CREATE TABLE IF NOT EXISTS projects (
