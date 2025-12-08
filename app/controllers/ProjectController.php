@@ -97,19 +97,18 @@ class ProjectController extends Controller {
             $id = $_POST['id'] ?? 0;
             $name = $_POST['name'] ?? '';
             
-            // Валидация
-            if (empty($name)) {
-                $error = "Името на проекта е задължително!";
-                $project = $this->projectModel->getById($id);
-                $this->view("project/edit", ['project' => $project, 'error' => $error]);
-                return;
-            }
-            
-            // Проверка дали проектът съществува и е собственост на потребителя
+            // Първо проверяваме дали проектът съществува и е собственост на потребителя
             $project = $this->projectModel->getById($id);
             if (!$project || $project['owner_id'] != Session::get('user_id')) {
                 header('Location: index.php?url=project/index');
                 exit;
+            }
+            
+            // След това правим валидация
+            if (empty($name)) {
+                $error = "Името на проекта е задължително!";
+                $this->view("project/edit", ['project' => $project, 'error' => $error]);
+                return;
             }
             
             if ($this->projectModel->update($id, $name)) {
