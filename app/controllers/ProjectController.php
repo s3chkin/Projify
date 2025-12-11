@@ -12,21 +12,18 @@ class ProjectController extends Controller {
         $this->projectModel = new Project();
         Session::start();
         
-        // Проверка дали потребителят е логнат
         if (!Session::has('user_id')) {
             header('Location: index.php?url=auth/login');
             exit;
         }
     }
     
-    // READ - Показване на всички проекти (GET)
     public function index() {
         $userId = Session::get('user_id');
         $projects = $this->projectModel->getByOwner($userId);
         $this->view("project/index", ['projects' => $projects]);
     }
     
-    // READ - Показване на един проект (GET)
     public function show() {
         $id = $_GET['id'] ?? 0;
         $project = $this->projectModel->getById($id);
@@ -39,18 +36,17 @@ class ProjectController extends Controller {
         $this->view("project/show", ['project' => $project]);
     }
     
-    // CREATE - Показване на форма за създаване (GET)
     public function create() {
         $this->view("project/create");
     }
     
-    // CREATE - Обработка на форма за създаване (POST)
     public function store() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->validateCSRF();
+            
             $name = $_POST['name'] ?? '';
             $ownerId = Session::get('user_id');
             
-            // Валидация
             if (empty($name)) {
                 $error = "Името на проекта е задължително!";
                 $this->view("project/create", ['error' => $error]);
@@ -63,7 +59,7 @@ class ProjectController extends Controller {
                 header('Location: index.php?url=project/index');
                 exit;
             } else {
-                $error = "Грешка при създаване на проекта!";
+                $error = "Грешка при създаване на проекта! Може да има проект с това име вече.";
                 $this->view("project/create", ['error' => $error]);
             }
         } else {
@@ -72,7 +68,6 @@ class ProjectController extends Controller {
         }
     }
     
-    // UPDATE - Показване на форма за редактиране (GET)
     public function edit() {
         $id = $_GET['id'] ?? 0;
         $project = $this->projectModel->getById($id);
@@ -82,7 +77,6 @@ class ProjectController extends Controller {
             exit;
         }
         
-        // Проверка дали потребителят е собственик
         if ($project['owner_id'] != Session::get('user_id')) {
             header('Location: index.php?url=project/index');
             exit;
@@ -91,20 +85,19 @@ class ProjectController extends Controller {
         $this->view("project/edit", ['project' => $project]);
     }
     
-    // UPDATE - Обработка на форма за редактиране (POST)
     public function update() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->validateCSRF();
+            
             $id = $_POST['id'] ?? 0;
             $name = $_POST['name'] ?? '';
             
-            // Първо проверяваме дали проектът съществува и е собственост на потребителя
             $project = $this->projectModel->getById($id);
             if (!$project || $project['owner_id'] != Session::get('user_id')) {
                 header('Location: index.php?url=project/index');
                 exit;
             }
             
-            // След това правим валидация
             if (empty($name)) {
                 $error = "Името на проекта е задължително!";
                 $this->view("project/edit", ['project' => $project, 'error' => $error]);
@@ -115,7 +108,7 @@ class ProjectController extends Controller {
                 header('Location: index.php?url=project/index');
                 exit;
             } else {
-                $error = "Грешка при обновяване на проекта!";
+                $error = "Грешка при обновяване на проекта! Може да има проект с това име вече.";
                 $this->view("project/edit", ['project' => $project, 'error' => $error]);
             }
         } else {
@@ -124,11 +117,9 @@ class ProjectController extends Controller {
         }
     }
     
-    // DELETE - Изтриване на проект (GET)
     public function delete() {
         $id = $_GET['id'] ?? 0;
         
-        // Проверка дали проектът съществува и е собственост на потребителя
         $project = $this->projectModel->getById($id);
         if (!$project || $project['owner_id'] != Session::get('user_id')) {
             header('Location: index.php?url=project/index');

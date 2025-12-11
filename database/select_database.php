@@ -1,7 +1,7 @@
 <?php
 include 'config.php';
 
-$dbname = "Projify";
+$dbname = "projify"; // Базата е с малка буква
 
 if (mysqli_select_db($conn, $dbname)) {
     echo "Database '$dbname' selected successfully.<br>";

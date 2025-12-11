@@ -1,7 +1,7 @@
 <?php
 include 'config.php';
 
-$dbname = "Projify";
+$dbname = "projify"; // Базата е с малка буква
 
 $sql = "CREATE DATABASE IF NOT EXISTS $dbname CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci";
 if (mysqli_query($conn, $sql)) {

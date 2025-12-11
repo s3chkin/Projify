@@ -4,8 +4,14 @@ require_once "../app/core/Model.php";
 
 class Project extends Model {
     
-    // CREATE - Създаване на проект
     public function create($name, $ownerId) {
+        $checkSql = "SELECT id FROM projects WHERE name = ? AND owner_id = ?";
+        $checkStmt = $this->db->prepare($checkSql);
+        $checkStmt->execute([$name, $ownerId]);
+        if ($checkStmt->fetch()) {
+            return false;
+        }
+        
         $sql = "INSERT INTO projects (name, owner_id) VALUES (?, ?)";
         
         try {
@@ -17,7 +23,6 @@ class Project extends Model {
         }
     }
     
-    // READ - Вземане на всички проекти
     public function getAll() {
         $sql = "SELECT * FROM projects ORDER BY id DESC";
         
@@ -30,7 +35,6 @@ class Project extends Model {
         }
     }
     
-    // READ - Вземане на проекти по owner_id
     public function getByOwner($ownerId) {
         $sql = "SELECT * FROM projects WHERE owner_id = ? ORDER BY id DESC";
         
@@ -43,7 +47,6 @@ class Project extends Model {
         }
     }
     
-    // READ - Вземане на един проект по ID
     public function getById($id) {
         $sql = "SELECT * FROM projects WHERE id = ?";
         
@@ -56,8 +59,19 @@ class Project extends Model {
         }
     }
     
-    // UPDATE - Обновяване на проект
     public function update($id, $name) {
+        $project = $this->getById($id);
+        if (!$project) {
+            return false;
+        }
+        
+        $checkSql = "SELECT id FROM projects WHERE name = ? AND owner_id = ? AND id != ?";
+        $checkStmt = $this->db->prepare($checkSql);
+        $checkStmt->execute([$name, $project['owner_id'], $id]);
+        if ($checkStmt->fetch()) {
+            return false;
+        }
+        
         $sql = "UPDATE projects SET name = ? WHERE id = ?";
         
         try {
@@ -68,7 +82,6 @@ class Project extends Model {
         }
     }
     
-    // DELETE - Изтриване на проект
     public function delete($id) {
         $sql = "DELETE FROM projects WHERE id = ?";
         

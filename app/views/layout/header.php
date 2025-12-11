@@ -5,88 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Projify - Управление на проекти</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            background-color: #f4f4f4;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        header {
-            background-color: #333;
-            color: white;
-            padding: 1rem 0;
-        }
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        nav ul {
-            list-style: none;
-            display: flex;
-            gap: 20px;
-        }
-        nav a {
-            color: white;
-            text-decoration: none;
-            padding: 5px 10px;
-        }
-        nav a:hover {
-            background-color: #555;
-            border-radius: 3px;
-        }
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        footer {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 1rem 0;
-            margin-top: 40px;
-        }
+        * { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body>
-    <header>
-        <div class="container">
-            <nav>
-                <h1>Projify</h1>
-                <ul>
+<body class="bg-gray-50 min-h-screen">
+    <header class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-8">
+                    <a href="index.php?url=home/index" class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+                            <span class="text-white font-bold text-sm">P</span>
+                        </div>
+                        <span class="text-xl font-bold text-gray-900">Projify</span>
+                    </a>
+                    
                     <?php if (Session::has('user_id')): ?>
-                        <li><a href="index.php?url=home/index">Начало</a></li>
-                        <li><a href="index.php?url=project/index">Проекти</a></li>
-                        <li><a href="index.php?url=task/index">Задачи</a></li>
-                        <li><span>Здравей, <?php echo htmlspecialchars(Session::get('user_name')); ?>!</span></li>
-                        <li><a href="index.php?url=auth/logout">Изход</a></li>
-                    <?php else: ?>
-                        <li><a href="index.php?url=auth/login">Вход</a></li>
-                        <li><a href="index.php?url=auth/register">Регистрация</a></li>
+                        <div class="hidden md:flex items-center gap-1">
+                            <a href="index.php?url=home/index" class="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">Начало</a>
+                            <a href="index.php?url=project/index" class="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">Проекти</a>
+                            <a href="index.php?url=task/index" class="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">Задачи</a>
+                            <a href="index.php?url=kanban/index" class="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">Kanban</a>
+                            <a href="index.php?url=label/index" class="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">Labels</a>
+                            <a href="index.php?url=report/index" class="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">Справки</a>
+                        </div>
                     <?php endif; ?>
-                </ul>
-            </nav>
-        </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <?php if (Session::has('user_id')): ?>
+                        <div class="hidden sm:flex items-center gap-3">
+                            <div class="text-right">
+                                <p class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars(Session::get('user_name')); ?></p>
+                                <p class="text-xs text-gray-500"><?php echo htmlspecialchars(ucfirst(Session::get('user_role') ?? 'user')); ?></p>
+                            </div>
+                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                <?php echo strtoupper(substr(Session::get('user_name'), 0, 1)); ?>
+                            </div>
+                        </div>
+                        <a href="index.php?url=auth/logout" class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                            Изход
+                        </a>
+                    <?php else: ?>
+                        <a href="index.php?url=auth/login" class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                            Вход
+                        </a>
+                        <a href="index.php?url=auth/register" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                            Регистрация
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </nav>
     </header>
-    <main>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 

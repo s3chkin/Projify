@@ -8,13 +8,14 @@ class Database {
         // Ако все още нямаме връзка, създаваме я
         if (self::$conn === null) {
             $servername = "localhost";
+            $port = "3307"; // XAMPP използва порт 3307
             $username = "root";
             $password = "";
-            $dbname = "Projify";
+            $dbname = "projify"; // Базата е с малка буква
             
             try {
                 // Създаваме PDO връзката
-                $dsn = "mysql:host=$servername;dbname=$dbname;charset=utf8mb4";
+                $dsn = "mysql:host=$servername;port=$port;dbname=$dbname;charset=utf8mb4";
                 $options = [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

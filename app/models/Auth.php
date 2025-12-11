@@ -4,21 +4,20 @@ require_once "../app/core/Model.php";
 
 class Auth extends Model {
     
-    public function register($firstName, $lastName, $email, $password) {
+    public function register($firstName, $lastName, $email, $password, $role = 'user') {
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         
-        $sql = "INSERT INTO users (first_name, last_name, email, password) 
-                VALUES (?, ?, ?, ?)";
+        $sql = "INSERT INTO users (first_name, last_name, email, password, role) 
+                VALUES (?, ?, ?, ?, ?)";
         
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->execute([$firstName, $lastName, $email, $passwordHash]);
+            $stmt->execute([$firstName, $lastName, $email, $passwordHash, $role]);
             
             return $this->db->lastInsertId();
         } catch (PDOException $e) {
-            // Връщаме грешката за да видим какво се случва
             error_log("Registration error: " . $e->getMessage());
-            return ['error' => $e->getMessage()];
+            return false;
         }
     }
     
@@ -46,6 +45,18 @@ class Auth extends Model {
         try {
             $stmt = $this->db->prepare($sql);
             $stmt->execute([$id]);
+            return $stmt->fetch();
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+    
+    public function getUserByEmail($email) {
+        $sql = "SELECT * FROM users WHERE email = ?";
+        
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$email]);
             return $stmt->fetch();
         } catch (PDOException $e) {
             return false;
