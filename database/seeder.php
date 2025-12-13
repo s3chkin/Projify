@@ -1,15 +1,20 @@
 <?php
 include 'select_database.php';
 
+$adminPassword = password_hash('123456', PASSWORD_DEFAULT);
+$sql = "INSERT INTO users (first_name, last_name, email, password, role) 
+        VALUES ('Admin', 'User', 'admin@example.com', '$adminPassword', 'admin')";
+mysqli_query($conn, $sql) or die("Error inserting admin user: " . mysqli_error($conn));
+
 $users = [
     ['Koko', 'Kokov', 'koko@example.com', '123456'],
     ['Kiki', 'Kikov', 'kiki@example.com', '123456']
 ];
 
 foreach ($users as $u) {
-    $passwordHash = password_hash($u[3], PASSWORD_DEFAULT); // хеширане на парола
-    $sql = "INSERT INTO users (first_name, last_name, email, password) 
-            VALUES ('$u[0]', '$u[1]', '$u[2]', '$passwordHash')";
+    $passwordHash = password_hash($u[3], PASSWORD_DEFAULT);
+    $sql = "INSERT INTO users (first_name, last_name, email, password, role) 
+            VALUES ('$u[0]', '$u[1]', '$u[2]', '$passwordHash', 'user')";
     mysqli_query($conn, $sql) or die("Error inserting user: " . mysqli_error($conn));
 }
 
