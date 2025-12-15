@@ -71,6 +71,29 @@ class Report extends Model {
             return [];
         }
     }
+
+    public function overdueTasksByProject() {
+        $sql = "SELECT p.name as project_name,
+                COUNT(t.id) as overdue_count,
+                MIN(t.due_date) as earliest_due_date,
+                MAX(t.due_date) as latest_due_date
+                FROM projects p
+                LEFT JOIN tasks t ON p.id = t.project_id
+                LEFT JOIN statuses s ON t.status_id = s.id
+                WHERE t.due_date IS NOT NULL
+                  AND t.due_date < CURDATE()
+                  AND s.name != 'Done'
+                GROUP BY p.id, p.name
+                ORDER BY overdue_count DESC";
+
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute();
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
     
     public function throughputByStage() {
         $sql = "SELECT s.name as status_name, 
@@ -150,19 +173,41 @@ class Report extends Model {
     
     public function tasksByPriority() {
         $sql = "SELECT 
-                CASE priority
+                CASE t.priority
                     WHEN 1 THEN 'Много висок'
                     WHEN 2 THEN 'Висок'
                     WHEN 3 THEN 'Среден'
                     WHEN 4 THEN 'Нисък'
                     ELSE 'Не зададен'
                 END as priority_name,
-                COUNT(id) as task_count,
-                AVG(DATEDIFF(COALESCE(due_date, CURDATE()), COALESCE(start_date, CURDATE()))) as avg_duration
-                FROM tasks
-                GROUP BY priority
-                ORDER BY priority ASC";
+                COUNT(t.id) as task_count,
+                AVG(DATEDIFF(COALESCE(t.due_date, CURDATE()), COALESCE(t.start_date, CURDATE()))) as avg_duration
+                FROM tasks t
+                LEFT JOIN projects p ON t.project_id = p.id
+                GROUP BY t.priority
+                ORDER BY t.priority ASC";
         
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute();
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+    
+    public function tasksBySprint() {
+        $sql = "SELECT s.name as sprint_name,
+                p.name as project_name,
+                COUNT(t.id) as task_count,
+                MIN(s.start_date) as start_date,
+                MAX(s.end_date) as end_date
+                FROM sprints s
+                LEFT JOIN projects p ON s.project_id = p.id
+                LEFT JOIN tasks t ON s.id = t.sprint_id
+                GROUP BY s.id, s.name, p.name
+                ORDER BY s.start_date ASC";
+
         try {
             $stmt = $this->db->prepare($sql);
             $stmt->execute();

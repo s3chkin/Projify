@@ -27,6 +27,7 @@ class AuthController extends Controller {
                 Session::set('user_id', $user['id']);
                 Session::set('user_name', $user['first_name'] . ' ' . $user['last_name']);
                 Session::set('user_email', $user['email']);
+                Session::set('user_role', $user['role'] ?? 'user');
                 
                 header('Location: index.php?url=home/index');
                 exit;
@@ -68,23 +69,33 @@ class AuthController extends Controller {
                 return;
             }
             
-            $userId = $this->auth->register($firstName, $lastName, $email, $password);
-            
-            if ($userId) {
-                $user = $this->auth->getUserById($userId);
-                if ($user) {
-                    Session::set('user_id', $user['id']);
-                    Session::set('user_name', $user['first_name'] . ' ' . $user['last_name']);
-                    Session::set('user_email', $user['email']);
-                    Session::set('user_role', $user['role'] ?? 'user');
-                    
-                    header('Location: index.php?url=home/index');
-                    exit;
+            try {
+                $userId = $this->auth->register($firstName, $lastName, $email, $password);
+                
+                if ($userId) {
+                    $user = $this->auth->getUserById($userId);
+                    if ($user) {
+                        Session::set('user_id', $user['id']);
+                        Session::set('user_name', $user['first_name'] . ' ' . $user['last_name']);
+                        Session::set('user_email', $user['email']);
+                        Session::set('user_role', $user['role'] ?? 'user');
+                        
+                        header('Location: index.php?url=home/index');
+                        exit;
+                    }
                 }
+                
+                $error = "Грешка при регистрация! Може email-ът вече да съществува.";
+                $this->view("auth/register", ['error' => $error]);
+            } catch (PDOException $e) {
+                $errorMsg = $e->getMessage();
+                if (strpos($errorMsg, 'Duplicate entry') !== false || strpos($errorMsg, 'UNIQUE') !== false) {
+                    $error = "Email адресът вече се използва!";
+                } else {
+                    $error = "Грешка при регистрация: " . htmlspecialchars($errorMsg);
+                }
+                $this->view("auth/register", ['error' => $error]);
             }
-            
-            $error = "Грешка при регистрация! Може email-ът вече да съществува.";
-            $this->view("auth/register", ['error' => $error]);
         } else {
             $this->view("auth/register");
         }

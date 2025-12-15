@@ -1,7 +1,15 @@
 <div class="space-y-6">
-    <div>
-        <h1 class="text-3xl font-bold text-gray-900">Справки</h1>
-        <p class="mt-1 text-sm text-gray-500">Анализ и статистика за проектите и задачите</p>
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Справки</h1>
+            <p class="mt-1 text-sm text-gray-500">Анализ и статистика за проектите и задачите</p>
+        </div>
+        <a href="index.php?url=report/export" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-sm transition-colors flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Експорт в PDF
+        </a>
     </div>
 
     <!-- Обща статистика -->
@@ -139,6 +147,41 @@
         <?php endif; ?>
     </div>
 
+    <!-- Просрочени задачи по проекти -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <h2 class="text-xl font-bold text-gray-900 mb-6">Просрочени задачи по проекти</h2>
+        <?php if (empty($reports['overdue_tasks_by_project'])): ?>
+            <p class="text-gray-600 text-center py-8">Няма просрочени задачи по проекти.</p>
+        <?php else: ?>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Проект</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Брой просрочени</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Най-ранна крайна дата</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Най-късна крайна дата</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <?php foreach ($reports['overdue_tasks_by_project'] as $row): ?>
+                            <tr class="hover:bg-red-50/40 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($row['project_name']); ?></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600"><?php echo $row['overdue_count']; ?></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    <?php echo $row['earliest_due_date'] ? date('d.m.Y', strtotime($row['earliest_due_date'])) : 'N/A'; ?>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    <?php echo $row['latest_due_date'] ? date('d.m.Y', strtotime($row['latest_due_date'])) : 'N/A'; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div>
+
     <!-- Задачи по приоритет -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
             <h2 class="text-xl font-bold text-gray-900 mb-6">Задачи по приоритет</h2>
@@ -239,6 +282,43 @@
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <!-- Задачи по спринтове -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <h2 class="text-xl font-bold text-gray-900 mb-6">Задачи по спринтове</h2>
+        <?php if (empty($reports['tasks_by_sprint'])): ?>
+            <p class="text-gray-600 text-center py-8">Няма създадени спринтове.</p>
+        <?php else: ?>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Спринт</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Проект</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Брой задачи</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Начална дата</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Крайна дата</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <?php foreach ($reports['tasks_by_sprint'] as $row): ?>
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($row['sprint_name']); ?></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600"><?php echo htmlspecialchars($row['project_name'] ?? 'N/A'); ?></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600"><?php echo $row['task_count']; ?></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    <?php echo $row['start_date'] ? date('d.m.Y', strtotime($row['start_date'])) : 'N/A'; ?>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    <?php echo $row['end_date'] ? date('d.m.Y', strtotime($row['end_date'])) : 'N/A'; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 

@@ -46,6 +46,18 @@ $sql = "CREATE TABLE IF NOT EXISTS projects (
 )";
 mysqli_query($conn, $sql) or die("Error creating projects table: " . mysqli_error($conn));
 
+// Добавяне на UNIQUE constraint за (owner_id, name), ако не съществува
+$checkUnique = "SELECT INDEX_NAME 
+                FROM information_schema.STATISTICS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                  AND TABLE_NAME = 'projects' 
+                  AND INDEX_NAME = 'uniq_owner_project_name'";
+$result = mysqli_query($conn, $checkUnique);
+if ($result && mysqli_num_rows($result) == 0) {
+    $sql = "ALTER TABLE projects ADD CONSTRAINT uniq_owner_project_name UNIQUE (owner_id, name)";
+    @mysqli_query($conn, $sql);
+}
+
 
 $sql = "CREATE TABLE IF NOT EXISTS project_members (
     project_id INT NOT NULL,

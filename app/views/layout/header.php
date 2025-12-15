@@ -32,6 +32,9 @@
                             <a href="index.php?url=kanban/index" class="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">Kanban</a>
                             <a href="index.php?url=label/index" class="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">Labels</a>
                             <a href="index.php?url=report/index" class="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">Справки</a>
+                            <?php if (Session::get('user_role') === 'admin'): ?>
+                                <a href="index.php?url=admin/index" class="px-3 py-2 text-sm font-medium text-red-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors font-semibold">Админ</a>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 </div>

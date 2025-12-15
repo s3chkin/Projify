@@ -74,5 +74,45 @@
                 </div>
             <?php endforeach; ?>
         </div>
+        
+        <!-- Страниране -->
+        <?php if (isset($totalPages) && $totalPages > 1): ?>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-gray-600">
+                        Показване на страница <span class="font-semibold"><?php echo $page; ?></span> от <span class="font-semibold"><?php echo $totalPages; ?></span>
+                        (Общо <span class="font-semibold"><?php echo $totalProjects; ?></span> проекта)
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <?php if ($page > 1): ?>
+                            <a href="index.php?url=project/index&page=<?php echo $page - 1; ?>" 
+                               class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
+                                Предишна
+                            </a>
+                        <?php endif; ?>
+                        
+                        <div class="flex items-center gap-1">
+                            <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
+                                <?php if ($i == $page): ?>
+                                    <span class="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg"><?php echo $i; ?></span>
+                                <?php else: ?>
+                                    <a href="index.php?url=project/index&page=<?php echo $i; ?>" 
+                                       class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
+                                        <?php echo $i; ?>
+                                    </a>
+                                <?php endif; ?>
+                            <?php endfor; ?>
+                        </div>
+                        
+                        <?php if ($page < $totalPages): ?>
+                            <a href="index.php?url=project/index&page=<?php echo $page + 1; ?>" 
+                               class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
+                                Следваща
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 </div>

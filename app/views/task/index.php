@@ -4,7 +4,7 @@
             <h1 class="text-3xl font-bold text-gray-900">Задачи</h1>
             <p class="mt-1 text-sm text-gray-500">Управлявай всичките си задачи</p>
         </div>
-        <?php if (isset($selectedProjectId) && $selectedProjectId): ?>
+        <?php if (isset($selectedProjectId) && $selectedProjectId && isset($canCreate) && $canCreate): ?>
             <a href="index.php?url=task/create&project_id=<?php echo $selectedProjectId; ?>" 
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

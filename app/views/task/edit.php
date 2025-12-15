@@ -39,40 +39,21 @@
                           placeholder="Въведи описание на задачата"><?php echo htmlspecialchars($task['description'] ?? ''); ?></textarea>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label for="status_id" class="block text-sm font-medium text-gray-700 mb-2">
-                        Статус <span class="text-red-500">*</span>
-                    </label>
-                    <select id="status_id" 
-                            name="status_id" 
-                            required
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors bg-white">
-                        <?php foreach ($statuses as $status): ?>
-                            <option value="<?php echo $status['id']; ?>" 
-                                    <?php echo ($task['status_id'] == $status['id']) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($status['name']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div>
-                    <label for="assignee_id" class="block text-sm font-medium text-gray-700 mb-2">
-                        Назначен на
-                    </label>
-                    <select id="assignee_id" 
-                            name="assignee_id"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors bg-white">
-                        <option value="">Не назначен</option>
-                        <?php foreach ($users as $user): ?>
-                            <option value="<?php echo $user['id']; ?>" 
-                                    <?php echo ($task['assignee_id'] == $user['id']) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+            <div>
+                <label for="status_id" class="block text-sm font-medium text-gray-700 mb-2">
+                    Статус <span class="text-red-500">*</span>
+                </label>
+                <select id="status_id" 
+                        name="status_id" 
+                        required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors bg-white">
+                    <?php foreach ($statuses as $status): ?>
+                        <option value="<?php echo $status['id']; ?>" 
+                                <?php echo ($task['status_id'] == $status['id']) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($status['name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
 
             <div class="grid grid-cols-2 gap-4">

@@ -58,6 +58,11 @@ class TaskController extends Controller {
         $statuses = $this->statusModel->getAll();
         $projects = $this->projectModel->getByOwner($userId);
         
+        $canCreate = false;
+        if ($projectId) {
+            $canCreate = $this->canAccessProject($projectId, $userId);
+        }
+        
         $this->view("task/index", [
             'tasks' => $tasks,
             'statuses' => $statuses,
@@ -68,7 +73,8 @@ class TaskController extends Controller {
             'selectedAssigneeId' => $assigneeId,
             'page' => $page,
             'totalPages' => $totalPages,
-            'totalTasks' => $totalTasks
+            'totalTasks' => $totalTasks,
+            'canCreate' => $canCreate
         ]);
     }
     
@@ -88,6 +94,8 @@ class TaskController extends Controller {
             exit;
         }
         
+        $canAccess = $this->canAccessProject($task['project_id'], $userId);
+        
         $commentModel = new Comment();
         $labelModel = new Label();
         $statuses = $this->statusModel->getAll();
@@ -100,7 +108,8 @@ class TaskController extends Controller {
             'statuses' => $statuses,
             'comments' => $comments,
             'taskLabels' => $taskLabels,
-            'allLabels' => $allLabels
+            'allLabels' => $allLabels,
+            'canAccess' => $canAccess
         ]);
     }
     
@@ -114,18 +123,22 @@ class TaskController extends Controller {
         
         $project = $this->projectModel->getById($projectId);
         $userId = Session::get('user_id');
-        if (!$project || ($project['owner_id'] != $userId && !$this->isProjectMember($projectId, $userId))) {
+        
+        if (!$project) {
+            header('Location: index.php?url=task/index');
+            exit;
+        }
+        
+        if (!$this->canAccessProject($projectId, $userId)) {
             header('Location: index.php?url=task/index');
             exit;
         }
         
         $statuses = $this->statusModel->getAll();
-        $users = $this->getProjectMembers($projectId);
         
         $this->view("task/create", [
             'project' => $project,
-            'statuses' => $statuses,
-            'users' => $users
+            'statuses' => $statuses
         ]);
     }
     
@@ -133,25 +146,37 @@ class TaskController extends Controller {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $this->validateCSRF();
             
-            $projectId = $_POST['project_id'] ?? 0;
-            $title = $_POST['title'] ?? '';
-            $description = $_POST['description'] ?? '';
-            $statusId = $_POST['status_id'] ?? 0;
-            $assigneeId = $_POST['assignee_id'] ?? null;
-            $startDate = $_POST['start_date'] ?? null;
-            $dueDate = $_POST['due_date'] ?? null;
-            $priority = $_POST['priority'] ?? 0;
+            $projectId = (int)($_POST['project_id'] ?? 0);
+            $title = trim($_POST['title'] ?? '');
+            $description = trim($_POST['description'] ?? '');
+            $statusId = !empty($_POST['status_id']) ? (int)$_POST['status_id'] : 0;
+            $startDate = !empty($_POST['start_date']) ? $_POST['start_date'] : null;
+            $dueDate = !empty($_POST['due_date']) ? $_POST['due_date'] : null;
+            $priority = !empty($_POST['priority']) && $_POST['priority'] !== '' ? (int)$_POST['priority'] : null;
+            
+            if (empty($description)) {
+                $description = null;
+            }
+            
+            $userId = Session::get('user_id');
+            $assigneeId = null;
+            
+            if (empty($startDate)) {
+                $startDate = null;
+            }
+            
+            if (empty($dueDate)) {
+                $dueDate = null;
+            }
             
             // Валидация
             if (empty($title) || empty($statusId)) {
                 $error = "Заглавието и статусът са задължителни!";
                 $project = $this->projectModel->getById($projectId);
                 $statuses = $this->statusModel->getAll();
-                $users = $this->getProjectMembers($projectId);
                 $this->view("task/create", [
                     'project' => $project,
                     'statuses' => $statuses,
-                    'users' => $users,
                     'error' => $error
                 ]);
                 return;
@@ -162,11 +187,9 @@ class TaskController extends Controller {
                 $error = "Крайната дата не може да е преди началната дата!";
                 $project = $this->projectModel->getById($projectId);
                 $statuses = $this->statusModel->getAll();
-                $users = $this->getProjectMembers($projectId);
                 $this->view("task/create", [
                     'project' => $project,
                     'statuses' => $statuses,
-                    'users' => $users,
                     'error' => $error
                 ]);
                 return;
@@ -175,25 +198,53 @@ class TaskController extends Controller {
             // Проверка за достъп
             $project = $this->projectModel->getById($projectId);
             $userId = Session::get('user_id');
-            if (!$project || ($project['owner_id'] != $userId && !$this->isProjectMember($projectId, $userId))) {
+            
+            if (!$project) {
                 header('Location: index.php?url=task/index');
                 exit;
             }
             
-            $userId = Session::get('user_id');
+            if (!$this->canAccessProject($projectId, $userId)) {
+                header('Location: index.php?url=task/index');
+                exit;
+            }
+            
+            // Валидация на priority
+            if ($priority !== null && ($priority < 1 || $priority > 4)) {
+                $error = "Приоритетът трябва да е между 1 и 4!";
+                $statuses = $this->statusModel->getAll();
+                $this->view("task/create", [
+                    'project' => $project,
+                    'statuses' => $statuses,
+                    'error' => $error
+                ]);
+                return;
+            }
+            
+            if (empty($statusId) || $statusId == 0) {
+                $error = "Моля изберете статус!";
+                $statuses = $this->statusModel->getAll();
+                $this->view("task/create", [
+                    'project' => $project,
+                    'statuses' => $statuses,
+                    'error' => $error
+                ]);
+                return;
+            }
+            
+            error_log("DEBUG: Creating task - projectId=$projectId, statusId=$statusId, title=" . substr($title, 0, 30));
+            
             $id = $this->taskModel->create($projectId, $title, $description, $statusId, $assigneeId, $startDate, $dueDate, $priority, $userId);
             
             if ($id) {
                 header('Location: index.php?url=task/index&project_id=' . $projectId);
                 exit;
             } else {
-                $error = "Грешка при създаване на задачата!";
+                $error = "Грешка при създаване на задачата! Проверете error_log файла в XAMPP за детайли. Уверете се че статусът е избран и проектът съществува.";
                 $statuses = $this->statusModel->getAll();
-                $users = $this->getProjectMembers($projectId);
                 $this->view("task/create", [
                     'project' => $project,
                     'statuses' => $statuses,
-                    'users' => $users,
                     'error' => $error
                 ]);
             }
@@ -214,19 +265,23 @@ class TaskController extends Controller {
         
         $project = $this->projectModel->getById($task['project_id']);
         $userId = Session::get('user_id');
-        if (!$project || ($project['owner_id'] != $userId && !$this->isProjectMember($task['project_id'], $userId))) {
+        
+        if (!$project) {
+            header('Location: index.php?url=task/index');
+            exit;
+        }
+        
+        if (!$this->canAccessProject($task['project_id'], $userId)) {
             header('Location: index.php?url=task/index');
             exit;
         }
         
         $statuses = $this->statusModel->getAll();
-        $users = $this->getProjectMembers($task['project_id']);
         
         $this->view("task/edit", [
             'task' => $task,
             'project' => $project,
-            'statuses' => $statuses,
-            'users' => $users
+            'statuses' => $statuses
         ]);
     }
     
@@ -238,7 +293,7 @@ class TaskController extends Controller {
             $title = $_POST['title'] ?? '';
             $description = $_POST['description'] ?? '';
             $statusId = $_POST['status_id'] ?? 0;
-            $assigneeId = $_POST['assignee_id'] ?? null;
+            $assigneeId = null;
             $startDate = $_POST['start_date'] ?? null;
             $dueDate = $_POST['due_date'] ?? null;
             $priority = $_POST['priority'] ?? 0;
@@ -261,12 +316,10 @@ class TaskController extends Controller {
             if (empty($title) || empty($statusId)) {
                 $error = "Заглавието и статусът са задължителни!";
                 $statuses = $this->statusModel->getAll();
-                $users = $this->getProjectMembers($task['project_id']);
                 $this->view("task/edit", [
                     'task' => $task,
                     'project' => $project,
                     'statuses' => $statuses,
-                    'users' => $users,
                     'error' => $error
                 ]);
                 return;
@@ -276,12 +329,10 @@ class TaskController extends Controller {
             if ($startDate && $dueDate && $dueDate < $startDate) {
                 $error = "Крайната дата не може да е преди началната дата!";
                 $statuses = $this->statusModel->getAll();
-                $users = $this->getProjectMembers($task['project_id']);
                 $this->view("task/edit", [
                     'task' => $task,
                     'project' => $project,
                     'statuses' => $statuses,
-                    'users' => $users,
                     'error' => $error
                 ]);
                 return;
@@ -290,12 +341,10 @@ class TaskController extends Controller {
             if (!$this->statusModel->isValidTransition($task['status_id'], $statusId)) {
                 $error = "Невалиден преход на статус!";
                 $statuses = $this->statusModel->getAll();
-                $users = $this->getProjectMembers($task['project_id']);
                 $this->view("task/edit", [
                     'task' => $task,
                     'project' => $project,
                     'statuses' => $statuses,
-                    'users' => $users,
                     'error' => $error
                 ]);
                 return;
@@ -307,12 +356,10 @@ class TaskController extends Controller {
             } else {
                 $error = "Грешка при обновяване на задачата!";
                 $statuses = $this->statusModel->getAll();
-                $users = $this->getProjectMembers($task['project_id']);
                 $this->view("task/edit", [
                     'task' => $task,
                     'project' => $project,
                     'statuses' => $statuses,
-                    'users' => $users,
                     'error' => $error
                 ]);
             }
@@ -333,7 +380,13 @@ class TaskController extends Controller {
         
         $project = $this->projectModel->getById($task['project_id']);
         $userId = Session::get('user_id');
-        if (!$project || ($project['owner_id'] != $userId && !$this->isProjectMember($task['project_id'], $userId))) {
+        
+        if (!$project) {
+            header('Location: index.php?url=task/index');
+            exit;
+        }
+        
+        if (!$this->canAccessProject($task['project_id'], $userId)) {
             header('Location: index.php?url=task/index');
             exit;
         }
@@ -368,7 +421,13 @@ class TaskController extends Controller {
         
         $project = $this->projectModel->getById($task['project_id']);
         $userId = Session::get('user_id');
-        if (!$project || ($project['owner_id'] != $userId && !$this->isProjectMember($task['project_id'], $userId))) {
+        
+        if (!$project) {
+            header('Location: index.php?url=task/index');
+            exit;
+        }
+        
+        if (!$this->canAccessProject($task['project_id'], $userId)) {
             header('Location: index.php?url=task/index');
             exit;
         }
@@ -393,6 +452,27 @@ class TaskController extends Controller {
         require_once "../app/models/ProjectMember.php";
         $projectMemberModel = new ProjectMember();
         return $projectMemberModel->isMember($projectId, $userId);
+    }
+    
+    private function isAdmin() {
+        return Session::get('user_role') === 'admin';
+    }
+    
+    private function canAccessProject($projectId, $userId) {
+        if ($this->isAdmin()) {
+            return true;
+        }
+        
+        $project = $this->projectModel->getById($projectId);
+        if (!$project) {
+            return false;
+        }
+        
+        if ($project['owner_id'] == $userId) {
+            return true;
+        }
+        
+        return $this->isProjectMember($projectId, $userId);
     }
     
     private function getProjectMembers($projectId) {

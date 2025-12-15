@@ -9,25 +9,49 @@ class Task extends Model {
             return false;
         }
         
+        if ($priority !== null && ($priority < 1 || $priority > 4)) {
+            return false;
+        }
+        
         try {
             $this->db->beginTransaction();
             
             $sql = "INSERT INTO tasks (project_id, sprint_id, title, description, status_id, assignee_id, start_date, due_date, priority) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $this->db->prepare($sql);
-            $stmt->execute([$projectId, $sprintId, $title, $description, $statusId, $assigneeId, $startDate, $dueDate, $priority]);
+            
+            $params = [
+                $projectId, 
+                $sprintId ?: null, 
+                $title, 
+                empty($description) ? null : $description, 
+                $statusId, 
+                $assigneeId, 
+                empty($startDate) ? null : $startDate, 
+                empty($dueDate) ? null : $dueDate, 
+                $priority
+            ];
+            
+            $stmt->execute($params);
             $taskId = $this->db->lastInsertId();
             
             if ($userId) {
-                $auditSql = "INSERT INTO audit_logs (user_id, action, entity, entity_id) VALUES (?, 'create', 'task', ?)";
-                $auditStmt = $this->db->prepare($auditSql);
-                $auditStmt->execute([$userId, $taskId]);
+                try {
+                    $auditSql = "INSERT INTO audit_logs (user_id, action, entity, entity_id) VALUES (?, 'create', 'task', ?)";
+                    $auditStmt = $this->db->prepare($auditSql);
+                    $auditStmt->execute([$userId, $taskId]);
+                } catch (PDOException $e) {
+                    error_log("Audit log error (non-critical): " . $e->getMessage());
+                }
             }
             
             $this->db->commit();
             return $taskId;
         } catch (PDOException $e) {
             $this->db->rollBack();
+            $errorMsg = $e->getMessage();
+            error_log("Task creation error: " . $errorMsg);
+            error_log("Task data: projectId=$projectId, statusId=$statusId, assigneeId=" . ($assigneeId ?? 'NULL') . ", priority=" . ($priority ?? 'NULL') . ", title=" . substr($title, 0, 50));
             return false;
         }
     }

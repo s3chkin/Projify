@@ -5,6 +5,7 @@
             <p class="mt-1 text-sm text-gray-500">Детайли за задачата</p>
         </div>
         <div class="flex gap-2">
+            <?php if (isset($canAccess) && $canAccess): ?>
             <a href="index.php?url=task/edit&id=<?php echo $task['id']; ?>" 
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -12,6 +13,15 @@
                 </svg>
                 Редактирай
             </a>
+            <a href="index.php?url=task/delete&id=<?php echo $task['id']; ?>" 
+               onclick="return confirm('Сигурни ли сте, че искате да изтриете тази задача?');"
+               class="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                Изтрий
+            </a>
+            <?php endif; ?>
             <a href="index.php?url=task/index&project_id=<?php echo $task['project_id']; ?>" 
                class="px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
                 Назад
@@ -96,12 +106,14 @@
                     <?php foreach ($taskLabels as $label): ?>
                         <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700">
                             <?php echo htmlspecialchars($label['name']); ?>
+                            <?php if (isset($canAccess) && $canAccess): ?>
                             <a href="index.php?url=task/removeLabel&task_id=<?php echo $task['id']; ?>&label_id=<?php echo $label['id']; ?>" 
                                class="hover:text-purple-900 transition-colors">
                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                                 </svg>
                             </a>
+                            <?php endif; ?>
                         </span>
                     <?php endforeach; ?>
                 <?php else: ?>
@@ -109,7 +121,7 @@
                 <?php endif; ?>
             </div>
             
-            <?php if (!empty($allLabels)): ?>
+            <?php if (!empty($allLabels) && isset($canAccess) && $canAccess): ?>
                 <form method="POST" action="index.php?url=task/addLabel" class="flex gap-2">
                     <?php echo CSRF::getTokenField(); ?>
                     <input type="hidden" name="task_id" value="<?php echo $task['id']; ?>">

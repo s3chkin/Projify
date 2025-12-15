@@ -20,8 +20,19 @@ class ProjectController extends Controller {
     
     public function index() {
         $userId = Session::get('user_id');
-        $projects = $this->projectModel->getByOwner($userId);
-        $this->view("project/index", ['projects' => $projects]);
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        $perPage = 9;
+        
+        $projects = $this->projectModel->getPaginatedByOwner($userId, $page, $perPage);
+        $totalProjects = $this->projectModel->getCountByOwner($userId);
+        $totalPages = ceil($totalProjects / $perPage);
+        
+        $this->view("project/index", [
+            'projects' => $projects,
+            'page' => $page,
+            'totalPages' => $totalPages,
+            'totalProjects' => $totalProjects
+        ]);
     }
     
     public function show() {

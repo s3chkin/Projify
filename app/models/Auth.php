@@ -16,8 +16,10 @@ class Auth extends Model {
             
             return $this->db->lastInsertId();
         } catch (PDOException $e) {
-            error_log("Registration error: " . $e->getMessage());
-            return false;
+            $errorMsg = $e->getMessage();
+            error_log("Registration error: " . $errorMsg);
+            error_log("Registration data: firstName=$firstName, lastName=$lastName, email=$email, role=$role");
+            throw $e;
         }
     }
     
@@ -29,10 +31,24 @@ class Auth extends Model {
             $stmt->execute([$email]);
             $user = $stmt->fetch();
             
-            if ($user && password_verify($password, $user['password'])) {
-                return $user;
+            if ($user) {
+                $storedHash = $user['password'];
+                $hashLength = strlen($storedHash);
+                
+                if ($hashLength < 60) {
+                    error_log("Invalid password hash length ($hashLength) for user: $email");
+                }
+                
+                if (password_verify($password, $storedHash)) {
+                    return $user;
+                } else {
+                    error_log("Password verification failed for user: $email (hash length: $hashLength)");
+                }
+            } else {
+                error_log("User not found: $email");
             }
         } catch (PDOException $e) {
+            error_log("Login error: " . $e->getMessage());
             return false;
         }
         

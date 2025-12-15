@@ -47,6 +47,33 @@ class Project extends Model {
         }
     }
     
+    public function getPaginatedByOwner($ownerId, $page = 1, $perPage = 9) {
+        $offset = ($page - 1) * $perPage;
+        
+        $sql = "SELECT * FROM projects WHERE owner_id = ? ORDER BY id DESC LIMIT ? OFFSET ?";
+        
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$ownerId, $perPage, $offset]);
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+    
+    public function getCountByOwner($ownerId) {
+        $sql = "SELECT COUNT(*) as total FROM projects WHERE owner_id = ?";
+        
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$ownerId]);
+            $result = $stmt->fetch();
+            return $result['total'] ?? 0;
+        } catch (PDOException $e) {
+            return 0;
+        }
+    }
+    
     public function getById($id) {
         $sql = "SELECT * FROM projects WHERE id = ?";
         

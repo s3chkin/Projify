@@ -27,4 +27,41 @@ class User extends Model {
             return [];
         }
     }
+    
+    public function getProjectsByUser($userId) {
+        $sql = "SELECT p.*, 'owner' as role_type
+                FROM projects p
+                WHERE p.owner_id = ?
+                UNION
+                SELECT p.*, pm.role as role_type
+                FROM projects p
+                INNER JOIN project_members pm ON p.id = pm.project_id
+                WHERE pm.user_id = ?
+                ORDER BY id DESC";
+        
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$userId, $userId]);
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+    
+    public function getTasksByUser($userId) {
+        $sql = "SELECT t.*, p.name as project_name, s.name as status_name
+                FROM tasks t
+                LEFT JOIN projects p ON t.project_id = p.id
+                LEFT JOIN statuses s ON t.status_id = s.id
+                WHERE t.assignee_id = ?
+                ORDER BY t.due_date ASC, t.created_at DESC";
+        
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
 }
