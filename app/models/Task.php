@@ -182,31 +182,40 @@ class Task extends Model {
         }
     }
     
-    public function search($query, $projectId = null, $statusId = null, $assigneeId = null) {
-        $sql = "SELECT t.*, s.name as status_name, p.name as project_name, u.first_name, u.last_name 
+    public function search($query, $projectId = null, $statusId = null, $assigneeId = null, $userId = null, $isAdmin = false) {
+        $sql = "SELECT DISTINCT t.*, s.name as status_name, p.name as project_name, u.first_name, u.last_name 
                 FROM tasks t
                 LEFT JOIN statuses s ON t.status_id = s.id
                 LEFT JOIN projects p ON t.project_id = p.id
-                LEFT JOIN users u ON t.assignee_id = u.id
-                WHERE (t.title LIKE ? OR t.description LIKE ?)";
+                LEFT JOIN users u ON t.assignee_id = u.id";
         
         $params = ["%$query%", "%$query%"];
+        $whereConditions = ["(t.title LIKE ? OR t.description LIKE ?)"];
+        
+        // Филтриране по права на достъп (ако не е админ)
+        if (!$isAdmin && $userId) {
+            $sql .= " LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = ?";
+            $params[] = $userId;
+            $whereConditions[] = "(p.owner_id = ? OR pm.user_id IS NOT NULL)";
+            $params[] = $userId;
+        }
         
         if ($projectId) {
-            $sql .= " AND t.project_id = ?";
+            $whereConditions[] = "t.project_id = ?";
             $params[] = $projectId;
         }
         
         if ($statusId) {
-            $sql .= " AND t.status_id = ?";
+            $whereConditions[] = "t.status_id = ?";
             $params[] = $statusId;
         }
         
         if ($assigneeId) {
-            $sql .= " AND t.assignee_id = ?";
+            $whereConditions[] = "t.assignee_id = ?";
             $params[] = $assigneeId;
         }
         
+        $sql .= " WHERE " . implode(" AND ", $whereConditions);
         $sql .= " ORDER BY t.id DESC";
         
         try {
@@ -218,20 +227,38 @@ class Task extends Model {
         }
     }
     
-    public function getPaginated($projectId = null, $page = 1, $perPage = 10) {
+    public function getPaginated($projectId = null, $page = 1, $perPage = 10, $statusId = null, $userId = null, $isAdmin = false) {
         $offset = ($page - 1) * $perPage;
         
-        $sql = "SELECT t.*, s.name as status_name, p.name as project_name, u.first_name, u.last_name 
+        $sql = "SELECT DISTINCT t.*, s.name as status_name, p.name as project_name, u.first_name, u.last_name 
                 FROM tasks t
                 LEFT JOIN statuses s ON t.status_id = s.id
                 LEFT JOIN projects p ON t.project_id = p.id
                 LEFT JOIN users u ON t.assignee_id = u.id";
         
         $params = [];
+        $whereConditions = [];
+        
+        // Филтриране по права на достъп (ако не е админ)
+        if (!$isAdmin && $userId) {
+            $sql .= " LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = ?";
+            $params[] = $userId;
+            $whereConditions[] = "(p.owner_id = ? OR pm.user_id IS NOT NULL)";
+            $params[] = $userId;
+        }
         
         if ($projectId) {
-            $sql .= " WHERE t.project_id = ?";
+            $whereConditions[] = "t.project_id = ?";
             $params[] = $projectId;
+        }
+        
+        if ($statusId) {
+            $whereConditions[] = "t.status_id = ?";
+            $params[] = $statusId;
+        }
+        
+        if (!empty($whereConditions)) {
+            $sql .= " WHERE " . implode(" AND ", $whereConditions);
         }
         
         $sql .= " ORDER BY t.id DESC LIMIT ? OFFSET ?";
@@ -247,13 +274,33 @@ class Task extends Model {
         }
     }
     
-    public function getCount($projectId = null) {
-        $sql = "SELECT COUNT(*) as total FROM tasks";
+    public function getCount($projectId = null, $statusId = null, $userId = null, $isAdmin = false) {
+        $sql = "SELECT COUNT(DISTINCT t.id) as total 
+                FROM tasks t
+                LEFT JOIN projects p ON t.project_id = p.id";
         $params = [];
+        $whereConditions = [];
+        
+        // Филтриране по права на достъп (ако не е админ)
+        if (!$isAdmin && $userId) {
+            $sql .= " LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = ?";
+            $params[] = $userId;
+            $whereConditions[] = "(p.owner_id = ? OR pm.user_id IS NOT NULL)";
+            $params[] = $userId;
+        }
         
         if ($projectId) {
-            $sql .= " WHERE project_id = ?";
+            $whereConditions[] = "t.project_id = ?";
             $params[] = $projectId;
+        }
+        
+        if ($statusId) {
+            $whereConditions[] = "t.status_id = ?";
+            $params[] = $statusId;
+        }
+        
+        if (!empty($whereConditions)) {
+            $sql .= " WHERE " . implode(" AND ", $whereConditions);
         }
         
         try {
@@ -290,6 +337,58 @@ class Task extends Model {
             return $stmt->fetchAll();
         } catch (PDOException $e) {
             return [];
+        }
+    }
+    
+    public function areAllTasksDone($projectId) {
+        $sql = "SELECT COUNT(*) as total, 
+                       SUM(CASE WHEN s.name = 'Done' THEN 1 ELSE 0 END) as done_count
+                FROM tasks t
+                LEFT JOIN statuses s ON t.status_id = s.id
+                WHERE t.project_id = ?";
+        
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$projectId]);
+            $result = $stmt->fetch();
+            
+            $total = (int)($result['total'] ?? 0);
+            $doneCount = (int)($result['done_count'] ?? 0);
+            
+            return $total > 0 && $total == $doneCount;
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+    
+    public function completeTask($id, $userId = null) {
+        require_once "../app/models/Status.php";
+        $statusModel = new Status();
+        $doneStatus = $statusModel->getByName('Done');
+        
+        if (!$doneStatus) {
+            return false;
+        }
+        
+        $sql = "UPDATE tasks SET status_id = ? WHERE id = ?";
+        
+        try {
+            $stmt = $this->db->prepare($sql);
+            $result = $stmt->execute([$doneStatus['id'], $id]);
+            
+            if ($result && $userId) {
+                try {
+                    $auditSql = "INSERT INTO audit_logs (user_id, action, entity, entity_id) VALUES (?, 'complete', 'task', ?)";
+                    $auditStmt = $this->db->prepare($auditSql);
+                    $auditStmt->execute([$userId, $id]);
+                } catch (PDOException $e) {
+                    error_log("Audit log error (non-critical): " . $e->getMessage());
+                }
+            }
+            
+            return $result;
+        } catch (PDOException $e) {
+            return false;
         }
     }
 }

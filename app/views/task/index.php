@@ -15,6 +15,18 @@
         <?php endif; ?>
     </div>
 
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg">
+            <p class="text-sm text-green-700"><?php echo htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?></p>
+        </div>
+    <?php endif; ?>
+    
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+            <p class="text-sm text-red-700"><?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?></p>
+        </div>
+    <?php endif; ?>
+    
     <?php if (isset($error)): ?>
         <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
             <p class="text-sm text-red-700"><?php echo htmlspecialchars($error); ?></p>
@@ -57,8 +69,8 @@
             <?php endif; ?>
             
             <?php if (!empty($statuses)): ?>
-                <select onchange="window.location.href='index.php?url=task/index<?php echo $selectedProjectId ? '&project_id=' . $selectedProjectId : ''; ?>&status_id=' + this.value + '<?php echo $search ? '&search=' . urlencode($search) : ''; ?>'" 
-                        class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                <select onchange="window.location.href='index.php?url=task/index<?php echo $selectedProjectId ? '&project_id=' . $selectedProjectId : ''; ?>&status_id=' + (this.value ? this.value : '') + '<?php echo $search ? '&search=' . urlencode($search) : ''; ?>'" 
+                        class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white">
                     <option value="">Всички статуси</option>
                     <?php foreach ($statuses as $status): ?>
                         <option value="<?php echo $status['id']; ?>" 
@@ -67,6 +79,13 @@
                         </option>
                     <?php endforeach; ?>
                 </select>
+            <?php endif; ?>
+            
+            <?php if (isset($selectedStatusId) && $selectedStatusId): ?>
+                <a href="index.php?url=task/index<?php echo $selectedProjectId ? '&project_id=' . $selectedProjectId : ''; ?><?php echo $search ? '&search=' . urlencode($search) : ''; ?>" 
+                   class="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition-colors">
+                    Изчисти филтър
+                </a>
             <?php endif; ?>
         </div>
     </div>
@@ -78,8 +97,30 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                 </svg>
             </div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Няма задачи</h3>
-            <p class="text-sm text-gray-500 mb-6">Създай първата си задача и започни да работиш</p>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                <?php if (isset($selectedStatusId) && $selectedStatusId): ?>
+                    Няма задачи с избрания статус
+                <?php elseif (isset($selectedProjectId) && $selectedProjectId): ?>
+                    Няма задачи в този проект
+                <?php elseif (isset($search) && $search): ?>
+                    Няма резултати от търсенето
+                <?php else: ?>
+                    Няма задачи
+                <?php endif; ?>
+            </h3>
+            <p class="text-sm text-gray-500 mb-6">
+                <?php if (isset($selectedStatusId) && $selectedStatusId || isset($search) && $search): ?>
+                    <a href="index.php?url=task/index<?php echo $selectedProjectId ? '&project_id=' . $selectedProjectId : ''; ?>" 
+                       class="text-blue-600 hover:text-blue-700 underline">
+                        Изчисти филтрите
+                    </a> или 
+                <?php endif; ?>
+                <?php if (isset($selectedProjectId) && $selectedProjectId): ?>
+                    създай първата задача в проекта
+                <?php else: ?>
+                    избери проект и създай задача
+                <?php endif; ?>
+            </p>
             <?php if (isset($selectedProjectId) && $selectedProjectId): ?>
                 <a href="index.php?url=task/create&project_id=<?php echo $selectedProjectId; ?>" 
                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
@@ -121,7 +162,7 @@
                                     <?php echo htmlspecialchars($task['project_name'] ?? 'N/A'); ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-medium <?php echo ($task['status_name'] == 'Done') ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'; ?>">
                                         <?php echo htmlspecialchars($task['status_name'] ?? 'N/A'); ?>
                                     </span>
                                 </td>
@@ -157,6 +198,19 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     <div class="flex items-center gap-3">
+                                        <?php if ($task['status_name'] != 'Done' && isset($canCreate) && $canCreate): ?>
+                                        <form method="POST" action="index.php?url=task/complete" class="inline">
+                                            <?php echo CSRF::getTokenField(); ?>
+                                            <input type="hidden" name="id" value="<?php echo $task['id']; ?>">
+                                            <input type="hidden" name="redirect" value="index.php?url=task/index<?php echo $selectedProjectId ? '&project_id=' . $selectedProjectId : ''; ?>">
+                                            <button type="submit" 
+                                                    class="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                                                    title="Завърши задача"
+                                                    onclick="return confirm('Сигурен ли си, че искаш да завършиш тази задача?');">
+                                                ✓
+                                            </button>
+                                        </form>
+                                        <?php endif; ?>
                                         <a href="index.php?url=task/show&id=<?php echo $task['id']; ?>" 
                                            class="text-blue-600 hover:text-blue-700 font-medium transition-colors">Виж</a>
                                         <a href="index.php?url=task/edit&id=<?php echo $task['id']; ?>" 

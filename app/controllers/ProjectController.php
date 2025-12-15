@@ -137,14 +137,209 @@ class ProjectController extends Controller {
             exit;
         }
         
-        if ($this->projectModel->delete($id)) {
+        try {
+            $result = $this->projectModel->delete($id);
+            if ($result) {
+                $_SESSION['success'] = "Проектът е изтрит успешно!";
+                header('Location: index.php?url=project/index');
+                exit;
+            } else {
+                $errorDetails = "Грешка при изтриване на проекта!";
+                error_log("Project deletion failed for project ID: $id");
+                $_SESSION['error'] = $errorDetails . " Проверете error_log файла за повече детайли.";
+                header('Location: index.php?url=project/index');
+                exit;
+            }
+        } catch (Exception $e) {
+            error_log("Exception in ProjectController::delete: " . $e->getMessage());
+            $_SESSION['error'] = "Грешка при изтриване на проекта: " . htmlspecialchars($e->getMessage());
             header('Location: index.php?url=project/index');
             exit;
-        } else {
-            $error = "Грешка при изтриване на проекта!";
-            $projects = $this->projectModel->getByOwner(Session::get('user_id'));
-            $this->view("project/index", ['projects' => $projects, 'error' => $error]);
         }
+    }
+    
+    public function members() {
+        $id = $_GET['id'] ?? 0;
+        $project = $this->projectModel->getById($id);
+        $userId = Session::get('user_id');
+        
+        if (!$project) {
+            header('Location: index.php?url=project/index');
+            exit;
+        }
+        
+        if ($project['owner_id'] != $userId && Session::get('user_role') !== 'admin') {
+            header('Location: index.php?url=project/index');
+            exit;
+        }
+        
+        require_once "../app/models/ProjectMember.php";
+        require_once "../app/models/User.php";
+        
+        $projectMemberModel = new ProjectMember();
+        $userModel = new User();
+        
+        $members = $projectMemberModel->getByProject($id);
+        $allUsers = $userModel->getAll();
+        
+        $existingMemberIds = array_map(function($m) { return $m['id']; }, $members);
+        $availableUsers = array_filter($allUsers, function($u) use ($existingMemberIds, $project) {
+            return !in_array($u['id'], $existingMemberIds) && $u['id'] != $project['owner_id'];
+        });
+        
+        $this->view("project/members", [
+            'project' => $project,
+            'members' => $members,
+            'availableUsers' => $availableUsers
+        ]);
+    }
+    
+    public function addMember() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->validateCSRF();
+            
+            $projectId = (int)($_POST['project_id'] ?? 0);
+            $userId = (int)($_POST['user_id'] ?? 0);
+            
+            $project = $this->projectModel->getById($projectId);
+            $currentUserId = Session::get('user_id');
+            
+            if (!$project || ($project['owner_id'] != $currentUserId && Session::get('user_role') !== 'admin')) {
+                header('Location: index.php?url=project/index');
+                exit;
+            }
+            
+            if ($userId == $project['owner_id']) {
+                $_SESSION['error'] = "Собственикът вече е част от проекта!";
+                header('Location: index.php?url=project/members&id=' . $projectId);
+                exit;
+            }
+            
+            require_once "../app/models/ProjectMember.php";
+            $projectMemberModel = new ProjectMember();
+            
+            if ($projectMemberModel->add($projectId, $userId, 'member')) {
+                $_SESSION['success'] = "Потребителят е добавен успешно към проекта!";
+            } else {
+                $_SESSION['error'] = "Грешка при добавяне на потребителя! Може вече да е член.";
+            }
+            
+            header('Location: index.php?url=project/members&id=' . $projectId);
+            exit;
+        }
+        
+        header('Location: index.php?url=project/index');
+        exit;
+    }
+    
+    public function removeMember() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->validateCSRF();
+            
+            $projectId = (int)($_POST['project_id'] ?? 0);
+            $userId = (int)($_POST['user_id'] ?? 0);
+            
+            $project = $this->projectModel->getById($projectId);
+            $currentUserId = Session::get('user_id');
+            
+            if (!$project || ($project['owner_id'] != $currentUserId && Session::get('user_role') !== 'admin')) {
+                header('Location: index.php?url=project/index');
+                exit;
+            }
+            
+            if ($userId == $project['owner_id']) {
+                $_SESSION['error'] = "Не можете да премахнете собственика на проекта!";
+                header('Location: index.php?url=project/members&id=' . $projectId);
+                exit;
+            }
+            
+            require_once "../app/models/ProjectMember.php";
+            $projectMemberModel = new ProjectMember();
+            
+            if ($projectMemberModel->remove($projectId, $userId)) {
+                $_SESSION['success'] = "Потребителят е премахнат успешно от проекта!";
+            } else {
+                $_SESSION['error'] = "Грешка при премахване на потребителя!";
+            }
+            
+            header('Location: index.php?url=project/members&id=' . $projectId);
+            exit;
+        }
+        
+        header('Location: index.php?url=project/index');
+        exit;
+    }
+    
+    public function complete() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->validateCSRF();
+            
+            $id = (int)($_POST['id'] ?? 0);
+            $project = $this->projectModel->getById($id);
+            $userId = Session::get('user_id');
+            
+            if (!$project) {
+                header('Location: index.php?url=project/index');
+                exit;
+            }
+            
+            if ($project['owner_id'] != $userId && Session::get('user_role') !== 'admin') {
+                $_SESSION['error'] = "Нямате права да завършите този проект!";
+                header('Location: index.php?url=project/show&id=' . $id);
+                exit;
+            }
+            
+            if (!$this->projectModel->canBeCompleted($id)) {
+                $_SESSION['error'] = "Проектът не може да бъде завършен! Всички задачи трябва да са завършени (Done).";
+                header('Location: index.php?url=project/show&id=' . $id);
+                exit;
+            }
+            
+            if ($this->projectModel->complete($id)) {
+                $_SESSION['success'] = "Проектът е завършен успешно!";
+            } else {
+                $_SESSION['error'] = "Грешка при завършване на проекта!";
+            }
+            
+            header('Location: index.php?url=project/show&id=' . $id);
+            exit;
+        }
+        
+        header('Location: index.php?url=project/index');
+        exit;
+    }
+    
+    public function reopen() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->validateCSRF();
+            
+            $id = (int)($_POST['id'] ?? 0);
+            $project = $this->projectModel->getById($id);
+            $userId = Session::get('user_id');
+            
+            if (!$project) {
+                header('Location: index.php?url=project/index');
+                exit;
+            }
+            
+            if ($project['owner_id'] != $userId && Session::get('user_role') !== 'admin') {
+                $_SESSION['error'] = "Нямате права да отворите отново този проект!";
+                header('Location: index.php?url=project/show&id=' . $id);
+                exit;
+            }
+            
+            if ($this->projectModel->reopen($id)) {
+                $_SESSION['success'] = "Проектът е отворен отново!";
+            } else {
+                $_SESSION['error'] = "Грешка при отваряне на проекта!";
+            }
+            
+            header('Location: index.php?url=project/show&id=' . $id);
+            exit;
+        }
+        
+        header('Location: index.php?url=project/index');
+        exit;
     }
 }
 

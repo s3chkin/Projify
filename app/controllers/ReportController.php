@@ -209,5 +209,201 @@ class ReportController extends Controller {
         $pdf->Output($filename, 'D');
         exit;
     }
+    
+    public function exportUser() {
+        require_once "../app/core/PDFReport.php";
+        require_once "../app/models/User.php";
+        require_once "../app/models/Project.php";
+        require_once "../app/models/Task.php";
+        
+        $userId = (int)($_GET['user_id'] ?? 0);
+        
+        if (!$userId) {
+            header('Location: index.php?url=admin/index');
+            exit;
+        }
+        
+        $userModel = new User();
+        $user = $userModel->getById($userId);
+        
+        if (!$user) {
+            header('Location: index.php?url=admin/index');
+            exit;
+        }
+        
+        $projects = $userModel->getProjectsByUser($userId);
+        $tasks = $userModel->getTasksByUser($userId);
+        
+        $userReports = [
+            'tasks_by_status' => $this->getUserTasksByStatus($userId),
+            'tasks_by_project' => $this->getUserTasksByProject($userId),
+            'overdue_tasks' => $this->getUserOverdueTasks($userId),
+            'workload_stats' => $this->getUserWorkloadStats($userId)
+        ];
+        
+        $pdf = new PDFReport(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        $pdf->SetCreator('Projify');
+        $pdf->SetAuthor('Projify');
+        $pdf->SetTitle('Справка за потребител - ' . $user['first_name'] . ' ' . $user['last_name']);
+        $pdf->SetSubject('Справка за потребител');
+        
+        $pdf->AddPage();
+        $pdf->SetFont('dejavusans', '', 10);
+        
+        $pdf->addSection('Информация за потребителя');
+        $pdf->Cell(0, 6, 'Име: ' . $user['first_name'] . ' ' . $user['last_name'], 0, 1);
+        $pdf->Cell(0, 6, 'Email: ' . $user['email'], 0, 1);
+        $pdf->Cell(0, 6, 'Роля: ' . ucfirst($user['role']), 0, 1);
+        $pdf->Ln(5);
+        
+        if (isset($userReports['workload_stats'])) {
+            $stats = $userReports['workload_stats'];
+            $pdf->addSection('Статистики за натовареност');
+            $pdf->Cell(0, 6, 'Общо задачи: ' . ($stats['total_tasks'] ?? 0), 0, 1);
+            $pdf->Cell(0, 6, 'Завършени задачи: ' . ($stats['completed_tasks'] ?? 0), 0, 1);
+            $pdf->Cell(0, 6, 'Просрочени задачи: ' . ($stats['overdue_tasks'] ?? 0), 0, 1);
+            $pdf->Cell(0, 6, 'Задачи с крайна дата днес: ' . ($stats['due_today'] ?? 0), 0, 1);
+            $pdf->Ln(5);
+        }
+        
+        $pdf->addSection('Проекти (' . count($projects) . ')');
+        if (!empty($projects)) {
+            $headers = ['Име на проект', 'Роля'];
+            $data = [];
+            foreach ($projects as $project) {
+                $data[] = [
+                    $project['name'],
+                    ($project['role_type'] ?? 'member') === 'owner' ? 'Собственик' : 'Член'
+                ];
+            }
+            $pdf->addTable($headers, $data, [95, 95]);
+        } else {
+            $pdf->Cell(0, 6, 'Няма проекти', 0, 1);
+        }
+        $pdf->Ln(5);
+        
+        if (!empty($userReports['tasks_by_status'])) {
+            $pdf->addSection('Задачи по статус');
+            $headers = ['Статус', 'Брой задачи'];
+            $data = [];
+            foreach ($userReports['tasks_by_status'] as $row) {
+                $data[] = [$row['status_name'] ?? 'N/A', $row['task_count']];
+            }
+            $pdf->addTable($headers, $data, [95, 95]);
+            $pdf->Ln(5);
+        }
+        
+        if (!empty($userReports['tasks_by_project'])) {
+            $pdf->addSection('Задачи по проект');
+            $headers = ['Проект', 'Брой задачи'];
+            $data = [];
+            foreach ($userReports['tasks_by_project'] as $row) {
+                $data[] = [$row['project_name'] ?? 'N/A', $row['task_count']];
+            }
+            $pdf->addTable($headers, $data, [95, 95]);
+            $pdf->Ln(5);
+        }
+        
+        if (!empty($userReports['overdue_tasks'])) {
+            $pdf->addSection('Просрочени задачи (' . count($userReports['overdue_tasks']) . ')');
+            $headers = ['Заглавие', 'Проект', 'Крайна дата'];
+            $data = [];
+            foreach ($userReports['overdue_tasks'] as $task) {
+                $dueDate = $task['due_date'] ? date('d.m.Y', strtotime($task['due_date'])) : 'N/A';
+                $data[] = [
+                    $task['title'] ?? '',
+                    $task['project_name'] ?? 'N/A',
+                    $dueDate
+                ];
+            }
+            $pdf->addTable($headers, $data, [63, 63, 64]);
+        }
+        
+        $filename = 'user_report_' . $user['id'] . '_' . date('Y-m-d_H-i-s') . '.pdf';
+        $pdf->Output($filename, 'D');
+        exit;
+    }
+    
+    private function getUserTasksByStatus($userId) {
+        $sql = "SELECT s.name as status_name, COUNT(t.id) as task_count
+                FROM statuses s
+                LEFT JOIN tasks t ON s.id = t.status_id 
+                    AND t.project_id IN (
+                        SELECT p.id FROM projects p 
+                        WHERE p.owner_id = ? 
+                        UNION 
+                        SELECT pm.project_id FROM project_members pm 
+                        WHERE pm.user_id = ?
+                    )
+                GROUP BY s.id, s.name
+                ORDER BY s.order_index";
+        
+        try {
+            $stmt = $this->reportModel->db->prepare($sql);
+            $stmt->execute([$userId, $userId]);
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+    
+    private function getUserTasksByProject($userId) {
+        $sql = "SELECT p.name as project_name, COUNT(t.id) as task_count
+                FROM projects p
+                INNER JOIN (
+                    SELECT id FROM projects WHERE owner_id = ?
+                    UNION
+                    SELECT project_id as id FROM project_members WHERE user_id = ?
+                ) user_projects ON p.id = user_projects.id
+                LEFT JOIN tasks t ON p.id = t.project_id
+                GROUP BY p.id, p.name
+                ORDER BY task_count DESC";
+        
+        try {
+            $stmt = $this->reportModel->db->prepare($sql);
+            $stmt->execute([$userId, $userId]);
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+    
+    private function getUserOverdueTasks($userId) {
+        require_once "../app/models/Task.php";
+        $taskModel = new Task();
+        $allOverdue = $taskModel->getOverdue();
+        
+        require_once "../app/models/User.php";
+        $userModel = new User();
+        $userProjects = $userModel->getProjectsByUser($userId);
+        $userProjectIds = array_map(function($p) { return $p['id']; }, $userProjects);
+        
+        return array_filter($allOverdue, function($task) use ($userProjectIds) {
+            return in_array($task['project_id'], $userProjectIds);
+        });
+    }
+    
+    private function getUserWorkloadStats($userId) {
+        $sql = "SELECT 
+                    COUNT(t.id) as total_tasks,
+                    COUNT(CASE WHEN s.name = 'Done' THEN 1 END) as completed_tasks,
+                    COUNT(CASE WHEN t.due_date < CURDATE() AND s.name != 'Done' THEN 1 END) as overdue_tasks,
+                    COUNT(CASE WHEN t.due_date = CURDATE() AND s.name != 'Done' THEN 1 END) as due_today
+                FROM tasks t
+                LEFT JOIN statuses s ON t.status_id = s.id
+                WHERE t.project_id IN (
+                    SELECT p.id FROM projects p WHERE p.owner_id = ?
+                    UNION
+                    SELECT pm.project_id FROM project_members pm WHERE pm.user_id = ?
+                )";
+        
+        try {
+            $stmt = $this->reportModel->db->prepare($sql);
+            $stmt->execute([$userId, $userId]);
+            return $stmt->fetch();
+        } catch (PDOException $e) {
+            return ['total_tasks' => 0, 'completed_tasks' => 0, 'overdue_tasks' => 0, 'due_today' => 0];
+        }
+    }
 }
 

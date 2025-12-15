@@ -41,5 +41,17 @@ class Status extends Model {
         
         return abs($toOrder - $fromOrder) <= 1;
     }
+    
+    public function getByName($name) {
+        $sql = "SELECT * FROM statuses WHERE name = ? LIMIT 1";
+        
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$name]);
+            return $stmt->fetch();
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
 }
 

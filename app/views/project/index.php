@@ -13,6 +13,18 @@
         </a>
     </div>
 
+    <?php if (isset($_SESSION['success'])): ?>
+        <div class="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg">
+            <p class="text-sm text-green-700"><?php echo htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?></p>
+        </div>
+    <?php endif; ?>
+    
+    <?php if (isset($_SESSION['error'])): ?>
+        <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
+            <p class="text-sm text-red-700"><?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?></p>
+        </div>
+    <?php endif; ?>
+    
     <?php if (isset($error)): ?>
         <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
             <p class="text-sm text-red-700"><?php echo htmlspecialchars($error); ?></p>
@@ -51,9 +63,19 @@
                         
                         <h3 class="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
                             <?php echo htmlspecialchars($project['name']); ?>
+                            <?php if (isset($project['status']) && $project['status'] === 'completed'): ?>
+                                <span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">Завършен</span>
+                            <?php endif; ?>
                         </h3>
                         
                         <div class="flex items-center gap-3 mt-6 pt-4 border-t border-gray-100">
+                            <a href="index.php?url=task/create&project_id=<?php echo $project['id']; ?>" 
+                               class="px-3 py-2 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                               title="Добави задача">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                            </a>
                             <a href="index.php?url=project/show&id=<?php echo $project['id']; ?>" 
                                class="flex-1 text-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
                                 Виж

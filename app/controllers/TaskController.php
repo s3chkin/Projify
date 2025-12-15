@@ -39,24 +39,33 @@ class TaskController extends Controller {
         
         if ($projectId) {
             $project = $this->projectModel->getById($projectId);
-            if (!$project || ($project['owner_id'] != $userId && !$this->isProjectMember($projectId, $userId))) {
+            if (!$project || (!$this->isAdmin() && $project['owner_id'] != $userId && !$this->isProjectMember($projectId, $userId))) {
                 header('Location: index.php?url=task/index');
                 exit;
             }
         }
         
+        $isAdmin = $this->isAdmin();
+        
         if ($search) {
-            $tasks = $this->taskModel->search($search, $projectId, $statusId, $assigneeId);
+            $tasks = $this->taskModel->search($search, $projectId, $statusId, $assigneeId, $userId, $isAdmin);
             $totalTasks = count($tasks);
             $totalPages = 1;
         } else {
-            $tasks = $this->taskModel->getPaginated($projectId, $page, $perPage);
-            $totalTasks = $this->taskModel->getCount($projectId);
+            $tasks = $this->taskModel->getPaginated($projectId, $page, $perPage, $statusId, $userId, $isAdmin);
+            $totalTasks = $this->taskModel->getCount($projectId, $statusId, $userId, $isAdmin);
             $totalPages = ceil($totalTasks / $perPage);
         }
         
         $statuses = $this->statusModel->getAll();
-        $projects = $this->projectModel->getByOwner($userId);
+        
+        if ($this->isAdmin()) {
+            $projects = $this->projectModel->getAll();
+        } else {
+            require_once "../app/models/User.php";
+            $userModel = new User();
+            $projects = $userModel->getProjectsByUser($userId);
+        }
         
         $canCreate = false;
         if ($projectId) {
@@ -135,10 +144,12 @@ class TaskController extends Controller {
         }
         
         $statuses = $this->statusModel->getAll();
+        $members = $this->getProjectMembers($projectId);
         
         $this->view("task/create", [
             'project' => $project,
-            'statuses' => $statuses
+            'statuses' => $statuses,
+            'members' => $members
         ]);
     }
     
@@ -159,7 +170,30 @@ class TaskController extends Controller {
             }
             
             $userId = Session::get('user_id');
-            $assigneeId = null;
+            $assigneeId = $_POST['assignee_id'] ?? null;
+            if ($assigneeId === '' || $assigneeId === '0' || $assigneeId === 0 || empty($assigneeId)) {
+                $assigneeId = null;
+            } else {
+                $assigneeId = (int)$assigneeId;
+            }
+            
+            if ($assigneeId !== null) {
+                $members = $this->getProjectMembers($projectId);
+                $memberIds = array_map(function($m) { return $m['id']; }, $members);
+                if (!in_array($assigneeId, $memberIds)) {
+                    $error = "Можеш да назначиш задача само на участник в проекта!";
+                    $project = $this->projectModel->getById($projectId);
+                    $statuses = $this->statusModel->getAll();
+                    $members = $this->getProjectMembers($projectId);
+                    $this->view("task/create", [
+                        'project' => $project,
+                        'statuses' => $statuses,
+                        'members' => $members,
+                        'error' => $error
+                    ]);
+                    return;
+                }
+            }
             
             if (empty($startDate)) {
                 $startDate = null;
@@ -174,9 +208,11 @@ class TaskController extends Controller {
                 $error = "Заглавието и статусът са задължителни!";
                 $project = $this->projectModel->getById($projectId);
                 $statuses = $this->statusModel->getAll();
+                $members = $this->getProjectMembers($projectId);
                 $this->view("task/create", [
                     'project' => $project,
                     'statuses' => $statuses,
+                    'members' => $members,
                     'error' => $error
                 ]);
                 return;
@@ -187,9 +223,11 @@ class TaskController extends Controller {
                 $error = "Крайната дата не може да е преди началната дата!";
                 $project = $this->projectModel->getById($projectId);
                 $statuses = $this->statusModel->getAll();
+                $members = $this->getProjectMembers($projectId);
                 $this->view("task/create", [
                     'project' => $project,
                     'statuses' => $statuses,
+                    'members' => $members,
                     'error' => $error
                 ]);
                 return;
@@ -213,9 +251,11 @@ class TaskController extends Controller {
             if ($priority !== null && ($priority < 1 || $priority > 4)) {
                 $error = "Приоритетът трябва да е между 1 и 4!";
                 $statuses = $this->statusModel->getAll();
+                $members = $this->getProjectMembers($projectId);
                 $this->view("task/create", [
                     'project' => $project,
                     'statuses' => $statuses,
+                    'members' => $members,
                     'error' => $error
                 ]);
                 return;
@@ -224,9 +264,11 @@ class TaskController extends Controller {
             if (empty($statusId) || $statusId == 0) {
                 $error = "Моля изберете статус!";
                 $statuses = $this->statusModel->getAll();
+                $members = $this->getProjectMembers($projectId);
                 $this->view("task/create", [
                     'project' => $project,
                     'statuses' => $statuses,
+                    'members' => $members,
                     'error' => $error
                 ]);
                 return;
@@ -242,9 +284,11 @@ class TaskController extends Controller {
             } else {
                 $error = "Грешка при създаване на задачата! Проверете error_log файла в XAMPP за детайли. Уверете се че статусът е избран и проектът съществува.";
                 $statuses = $this->statusModel->getAll();
+                $members = $this->getProjectMembers($projectId);
                 $this->view("task/create", [
                     'project' => $project,
                     'statuses' => $statuses,
+                    'members' => $members,
                     'error' => $error
                 ]);
             }
@@ -277,11 +321,13 @@ class TaskController extends Controller {
         }
         
         $statuses = $this->statusModel->getAll();
+        $members = $this->getProjectMembers($task['project_id']);
         
         $this->view("task/edit", [
             'task' => $task,
             'project' => $project,
-            'statuses' => $statuses
+            'statuses' => $statuses,
+            'members' => $members
         ]);
     }
     
@@ -293,7 +339,12 @@ class TaskController extends Controller {
             $title = $_POST['title'] ?? '';
             $description = $_POST['description'] ?? '';
             $statusId = $_POST['status_id'] ?? 0;
-            $assigneeId = null;
+            $assigneeId = $_POST['assignee_id'] ?? null;
+            if ($assigneeId === '' || $assigneeId === '0' || $assigneeId === 0 || empty($assigneeId)) {
+                $assigneeId = null;
+            } else {
+                $assigneeId = (int)$assigneeId;
+            }
             $startDate = $_POST['start_date'] ?? null;
             $dueDate = $_POST['due_date'] ?? null;
             $priority = $_POST['priority'] ?? 0;
@@ -316,10 +367,12 @@ class TaskController extends Controller {
             if (empty($title) || empty($statusId)) {
                 $error = "Заглавието и статусът са задължителни!";
                 $statuses = $this->statusModel->getAll();
+                $members = $this->getProjectMembers($task['project_id']);
                 $this->view("task/edit", [
                     'task' => $task,
                     'project' => $project,
                     'statuses' => $statuses,
+                    'members' => $members,
                     'error' => $error
                 ]);
                 return;
@@ -329,10 +382,12 @@ class TaskController extends Controller {
             if ($startDate && $dueDate && $dueDate < $startDate) {
                 $error = "Крайната дата не може да е преди началната дата!";
                 $statuses = $this->statusModel->getAll();
+                $members = $this->getProjectMembers($task['project_id']);
                 $this->view("task/edit", [
                     'task' => $task,
                     'project' => $project,
                     'statuses' => $statuses,
+                    'members' => $members,
                     'error' => $error
                 ]);
                 return;
@@ -356,10 +411,12 @@ class TaskController extends Controller {
             } else {
                 $error = "Грешка при обновяване на задачата!";
                 $statuses = $this->statusModel->getAll();
+                $members = $this->getProjectMembers($task['project_id']);
                 $this->view("task/edit", [
                     'task' => $task,
                     'project' => $project,
                     'statuses' => $statuses,
+                    'members' => $members,
                     'error' => $error
                 ]);
             }
@@ -445,6 +502,39 @@ class TaskController extends Controller {
             header('Location: index.php?url=task/index&project_id=' . $task['project_id'] . '&error=update_failed');
             exit;
         }
+    }
+    
+    public function complete() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $this->validateCSRF();
+            
+            $id = (int)($_POST['id'] ?? 0);
+            $task = $this->taskModel->getById($id);
+            
+            if (!$task) {
+                header('Location: index.php?url=task/index');
+                exit;
+            }
+            
+            $userId = Session::get('user_id');
+            if (!$this->canAccessProject($task['project_id'], $userId)) {
+                header('Location: index.php?url=task/index');
+                exit;
+            }
+            
+            if ($this->taskModel->completeTask($id, $userId)) {
+                $_SESSION['success'] = "Задачата е завършена успешно!";
+            } else {
+                $_SESSION['error'] = "Грешка при завършване на задачата!";
+            }
+            
+            $redirectUrl = $_POST['redirect'] ?? 'index.php?url=task/index&project_id=' . $task['project_id'];
+            header('Location: ' . $redirectUrl);
+            exit;
+        }
+        
+        header('Location: index.php?url=task/index');
+        exit;
     }
     
     // Helper методи

@@ -49,16 +49,17 @@ class User extends Model {
     }
     
     public function getTasksByUser($userId) {
-        $sql = "SELECT t.*, p.name as project_name, s.name as status_name
+        $sql = "SELECT DISTINCT t.*, p.name as project_name, s.name as status_name
                 FROM tasks t
                 LEFT JOIN projects p ON t.project_id = p.id
                 LEFT JOIN statuses s ON t.status_id = s.id
-                WHERE t.assignee_id = ?
+                LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = ?
+                WHERE (p.owner_id = ? OR pm.user_id = ?)
                 ORDER BY t.due_date ASC, t.created_at DESC";
         
         try {
             $stmt = $this->db->prepare($sql);
-            $stmt->execute([$userId]);
+            $stmt->execute([$userId, $userId, $userId]);
             return $stmt->fetchAll();
         } catch (PDOException $e) {
             return [];

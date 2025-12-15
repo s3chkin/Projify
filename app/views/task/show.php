@@ -6,6 +6,21 @@
         </div>
         <div class="flex gap-2">
             <?php if (isset($canAccess) && $canAccess): ?>
+            <?php if ($task['status_name'] != 'Done'): ?>
+            <form method="POST" action="index.php?url=task/complete" class="inline">
+                <?php echo CSRF::getTokenField(); ?>
+                <input type="hidden" name="id" value="<?php echo $task['id']; ?>">
+                <input type="hidden" name="redirect" value="index.php?url=task/show&id=<?php echo $task['id']; ?>">
+                <button type="submit" 
+                        class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                        onclick="return confirm('Сигурни ли сте, че искате да завършите тази задача?');">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Завърши задача
+                </button>
+            </form>
+            <?php endif; ?>
             <a href="index.php?url=task/edit&id=<?php echo $task['id']; ?>" 
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,7 +58,7 @@
 
             <div>
                 <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Статус</h3>
-                <span class="inline-flex px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
+                <span class="inline-flex px-3 py-1 rounded-full text-sm font-medium <?php echo ($task['status_name'] == 'Done') ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'; ?>">
                     <?php echo htmlspecialchars($task['status_name'] ?? 'N/A'); ?>
                 </span>
             </div>

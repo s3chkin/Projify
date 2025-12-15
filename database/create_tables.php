@@ -42,9 +42,18 @@ $sql = "CREATE TABLE IF NOT EXISTS projects (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     owner_id INT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed')),
     FOREIGN KEY (owner_id) REFERENCES users(id)
 )";
 mysqli_query($conn, $sql) or die("Error creating projects table: " . mysqli_error($conn));
+
+// Добавяне на status колона ако таблицата вече съществува без нея
+$check = "SHOW COLUMNS FROM projects LIKE 'status'";
+$result = mysqli_query($conn, $check);
+if (mysqli_num_rows($result) == 0) {
+    $sql = "ALTER TABLE projects ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed'))";
+    @mysqli_query($conn, $sql);
+}
 
 // Добавяне на UNIQUE constraint за (owner_id, name), ако не съществува
 $checkUnique = "SELECT INDEX_NAME 
@@ -64,7 +73,7 @@ $sql = "CREATE TABLE IF NOT EXISTS project_members (
     user_id INT NOT NULL,
     role VARCHAR(50) NOT NULL CHECK (role IN ('owner', 'member', 'viewer')),
     PRIMARY KEY (project_id, user_id),
-    FOREIGN KEY (project_id) REFERENCES projects(id),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id)
 )";
 mysqli_query($conn, $sql) or die("Error creating project_members table: " . mysqli_error($conn));
@@ -98,7 +107,7 @@ $sql = "CREATE TABLE IF NOT EXISTS tasks (
     start_date DATE,
     due_date DATE,
     priority INT CHECK (priority >= 1 AND priority <= 4),
-    FOREIGN KEY (project_id) REFERENCES projects(id),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY (status_id) REFERENCES statuses(id),
     FOREIGN KEY (assignee_id) REFERENCES users(id),
     CHECK (due_date IS NULL OR start_date IS NULL OR due_date >= start_date)
@@ -168,7 +177,7 @@ $sql = "CREATE TABLE IF NOT EXISTS sprints (
     name VARCHAR(150) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
-    FOREIGN KEY (project_id) REFERENCES projects(id),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     CHECK (end_date >= start_date)
 )";
 mysqli_query($conn, $sql) or die("Error creating sprints table: " . mysqli_error($conn));

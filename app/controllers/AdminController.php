@@ -33,23 +33,173 @@ class AdminController extends Controller {
     public function index() {
         $users = $this->userModel->getAll();
         
-        $usersWithDetails = [];
+        $usersWithCounts = [];
         foreach ($users as $user) {
             $projects = $this->userModel->getProjectsByUser($user['id']);
             $tasks = $this->userModel->getTasksByUser($user['id']);
             
-            $usersWithDetails[] = [
+            $usersWithCounts[] = [
                 'user' => $user,
-                'projects' => $projects,
-                'tasks' => $tasks,
                 'projects_count' => count($projects),
                 'tasks_count' => count($tasks)
             ];
         }
         
         $this->view("admin/index", [
-            'users' => $usersWithDetails
+            'users' => $usersWithCounts
         ]);
+    }
+    
+    public function user() {
+        $userId = (int)($_GET['id'] ?? 0);
+        
+        if (!$userId) {
+            header('Location: index.php?url=admin/index');
+            exit;
+        }
+        
+        $user = $this->userModel->getById($userId);
+        if (!$user) {
+            header('Location: index.php?url=admin/index');
+            exit;
+        }
+        
+        $projects = $this->userModel->getProjectsByUser($userId);
+        $tasks = $this->userModel->getTasksByUser($userId);
+        
+        require_once "../app/models/Report.php";
+        $reportModel = new Report();
+        
+        $userReports = [
+            'tasks_by_status' => $this->getUserTasksByStatus($userId),
+            'tasks_by_project' => $this->getUserTasksByProject($userId),
+            'overdue_tasks' => $this->getUserOverdueTasks($userId),
+            'completed_tasks' => $this->getUserCompletedTasks($userId),
+            'workload_stats' => $this->getUserWorkloadStats($userId)
+        ];
+        
+        $this->view("admin/user", [
+            'user' => $user,
+            'projects' => $projects,
+            'tasks' => $tasks,
+            'reports' => $userReports
+        ]);
+    }
+    
+    private function getUserTasksByStatus($userId) {
+        require_once "../app/core/Database.php";
+        $db = Database::getConnection();
+        
+        $sql = "SELECT s.name as status_name, COUNT(t.id) as task_count
+                FROM statuses s
+                LEFT JOIN tasks t ON s.id = t.status_id 
+                    AND t.project_id IN (
+                        SELECT p.id FROM projects p 
+                        WHERE p.owner_id = ? 
+                        UNION 
+                        SELECT pm.project_id FROM project_members pm 
+                        WHERE pm.user_id = ?
+                    )
+                GROUP BY s.id, s.name
+                ORDER BY s.order_index";
+        
+        try {
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$userId, $userId]);
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+    
+    private function getUserTasksByProject($userId) {
+        require_once "../app/core/Database.php";
+        $db = Database::getConnection();
+        
+        $sql = "SELECT p.name as project_name, COUNT(t.id) as task_count
+                FROM projects p
+                INNER JOIN (
+                    SELECT id FROM projects WHERE owner_id = ?
+                    UNION
+                    SELECT project_id as id FROM project_members WHERE user_id = ?
+                ) user_projects ON p.id = user_projects.id
+                LEFT JOIN tasks t ON p.id = t.project_id
+                GROUP BY p.id, p.name
+                ORDER BY task_count DESC";
+        
+        try {
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$userId, $userId]);
+            return $stmt->fetchAll();
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+    
+    private function getUserOverdueTasks($userId) {
+        require_once "../app/models/Task.php";
+        $taskModel = new Task();
+        $allOverdue = $taskModel->getOverdue();
+        
+        $userProjectIds = [];
+        $userProjects = $this->userModel->getProjectsByUser($userId);
+        foreach ($userProjects as $project) {
+            $userProjectIds[] = $project['id'];
+        }
+        
+        return array_filter($allOverdue, function($task) use ($userProjectIds) {
+            return in_array($task['project_id'], $userProjectIds);
+        });
+    }
+    
+    private function getUserCompletedTasks($userId) {
+        require_once "../app/core/Database.php";
+        $db = Database::getConnection();
+        
+        $sql = "SELECT COUNT(*) as count
+                FROM tasks t
+                INNER JOIN statuses s ON t.status_id = s.id
+                WHERE s.name = 'Done'
+                AND t.project_id IN (
+                    SELECT p.id FROM projects p WHERE p.owner_id = ?
+                    UNION
+                    SELECT pm.project_id FROM project_members pm WHERE pm.user_id = ?
+                )";
+        
+        try {
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$userId, $userId]);
+            $result = $stmt->fetch();
+            return $result['count'] ?? 0;
+        } catch (PDOException $e) {
+            return 0;
+        }
+    }
+    
+    private function getUserWorkloadStats($userId) {
+        require_once "../app/core/Database.php";
+        $db = Database::getConnection();
+        
+        $sql = "SELECT 
+                    COUNT(t.id) as total_tasks,
+                    COUNT(CASE WHEN s.name = 'Done' THEN 1 END) as completed_tasks,
+                    COUNT(CASE WHEN t.due_date < CURDATE() AND s.name != 'Done' THEN 1 END) as overdue_tasks,
+                    COUNT(CASE WHEN t.due_date = CURDATE() AND s.name != 'Done' THEN 1 END) as due_today
+                FROM tasks t
+                LEFT JOIN statuses s ON t.status_id = s.id
+                WHERE t.project_id IN (
+                    SELECT p.id FROM projects p WHERE p.owner_id = ?
+                    UNION
+                    SELECT pm.project_id FROM project_members pm WHERE pm.user_id = ?
+                )";
+        
+        try {
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$userId, $userId]);
+            return $stmt->fetch();
+        } catch (PDOException $e) {
+            return ['total_tasks' => 0, 'completed_tasks' => 0, 'overdue_tasks' => 0, 'due_today' => 0];
+        }
     }
     
     public function delete() {
