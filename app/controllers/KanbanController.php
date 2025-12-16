@@ -49,11 +49,15 @@ class KanbanController extends Controller {
         
         $tasksByStatus = [];
         foreach ($statuses as $status) {
+            $filteredTasks = array_filter($tasks, function($task) use ($status) {
+                if (!isset($task['status_id']) || $task['status_id'] === null) {
+                    return false;
+                }
+                return (int)$task['status_id'] === (int)$status['id'];
+            });
             $tasksByStatus[$status['id']] = [
                 'status' => $status,
-                'tasks' => array_filter($tasks, function($task) use ($status) {
-                    return $task['status_id'] == $status['id'];
-                })
+                'tasks' => array_values($filteredTasks)
             ];
         }
         

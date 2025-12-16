@@ -197,9 +197,9 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     <?php foreach ($reports['tasks_by_priority'] as $row): ?>
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900<?php echo htmlspecialchars($row['priority_name']); ?></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($row['priority_name']); ?></td>
                             <td class="border border-gray-300 px-4 py-2"><?php echo $row['task_count']; ?></td>
-                            <td class="border border-gray-300 px-4 py-2"><?php echo round($row['avg_duration'] ?? 0, 1); ?></td>
+                            <td class="border border-gray-300 px-4 py-2"><?php echo round($row['avg_duration'] ?? 0, 1); ?> дни</td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -222,9 +222,9 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     <?php foreach ($reports['throughput_by_stage'] as $row): ?>
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900<?php echo htmlspecialchars($row['status_name']); ?></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($row['status_name']); ?></td>
                             <td class="border border-gray-300 px-4 py-2"><?php echo $row['task_count']; ?></td>
-                            <td class="border border-gray-300 px-4 py-2"><?php echo round($row['avg_duration'] ?? 0, 1); ?></td>
+                            <td class="border border-gray-300 px-4 py-2"><?php echo round($row['avg_duration'] ?? 0, 1); ?> дни</td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -247,7 +247,7 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     <?php foreach ($reports['projects_with_most_tasks'] as $row): ?>
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900<?php echo htmlspecialchars($row['project_name']); ?></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($row['project_name']); ?></td>
                             <td class="border border-gray-300 px-4 py-2"><?php echo $row['task_count']; ?></td>
                             <td class="border border-gray-300 px-4 py-2"><?php echo $row['completed_tasks']; ?></td>
                         </tr>
@@ -273,7 +273,7 @@
                 <tbody class="bg-white divide-y divide-gray-200">
                     <?php foreach ($reports['users_with_most_tasks'] as $row): ?>
                         <tr class="hover:bg-gray-50 transition-colors">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900<?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></td>
                             <td class="border border-gray-300 px-4 py-2"><?php echo htmlspecialchars($row['email']); ?></td>
                             <td class="border border-gray-300 px-4 py-2"><?php echo $row['task_count']; ?></td>
                             <td class="border border-gray-300 px-4 py-2"><?php echo $row['completed_tasks']; ?></td>

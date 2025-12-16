@@ -72,8 +72,20 @@ class TaskController extends Controller {
             $canCreate = $this->canAccessProject($projectId, $userId);
         }
         
+        // Добавяме информация за права на редактиране за всяка задача
+        $tasksWithPermissions = [];
+        foreach ($tasks as $task) {
+            $projectForTask = $this->projectModel->getById($task['project_id']);
+            $canEditTask = $this->canAccessProject($task['project_id'], $userId) && 
+                          ($this->isAdmin() || 
+                           ($projectForTask && $projectForTask['owner_id'] == $userId) || 
+                           $task['assignee_id'] != $userId);
+            $task['canEdit'] = $canEditTask;
+            $tasksWithPermissions[] = $task;
+        }
+        
         $this->view("task/index", [
-            'tasks' => $tasks,
+            'tasks' => $tasksWithPermissions,
             'statuses' => $statuses,
             'projects' => $projects,
             'selectedProjectId' => $projectId,
@@ -105,6 +117,9 @@ class TaskController extends Controller {
         
         $canAccess = $this->canAccessProject($task['project_id'], $userId);
         
+        // Проверка: назначеният на задачата НЕ може да я редактира (освен ако е собственик или админ)
+        $canEdit = $canAccess && ($this->isAdmin() || $project['owner_id'] == $userId || $task['assignee_id'] != $userId);
+        
         $commentModel = new Comment();
         $labelModel = new Label();
         $statuses = $this->statusModel->getAll();
@@ -118,7 +133,8 @@ class TaskController extends Controller {
             'comments' => $comments,
             'taskLabels' => $taskLabels,
             'allLabels' => $allLabels,
-            'canAccess' => $canAccess
+            'canAccess' => $canAccess,
+            'canEdit' => $canEdit
         ]);
     }
     
@@ -320,6 +336,13 @@ class TaskController extends Controller {
             exit;
         }
         
+        // Проверка: назначеният на задачата НЕ може да я редактира (освен ако е собственик или админ)
+        if (!$this->isAdmin() && $task['assignee_id'] == $userId && $project['owner_id'] != $userId) {
+            $_SESSION['error'] = "Не можете да редактирате задача, която е назначена на вас!";
+            header('Location: index.php?url=task/show&id=' . $id);
+            exit;
+        }
+        
         $statuses = $this->statusModel->getAll();
         $members = $this->getProjectMembers($task['project_id']);
         
@@ -360,6 +383,13 @@ class TaskController extends Controller {
             $userId = Session::get('user_id');
             if (!$project || ($project['owner_id'] != $userId && !$this->isProjectMember($task['project_id'], $userId))) {
                 header('Location: index.php?url=task/index');
+                exit;
+            }
+            
+            // Проверка: назначеният на задачата НЕ може да я редактира (освен ако е собственик или админ)
+            if (!$this->isAdmin() && $task['assignee_id'] == $userId && $project['owner_id'] != $userId) {
+                $_SESSION['error'] = "Не можете да редактирате задача, която е назначена на вас!";
+                header('Location: index.php?url=task/show&id=' . $id);
                 exit;
             }
             

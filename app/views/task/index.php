@@ -139,6 +139,7 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Заглавие</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Проект</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Създадена от</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Статус</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Назначен</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Крайна дата</th>
@@ -159,7 +160,19 @@
                                     </a>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    <?php echo htmlspecialchars($task['project_name'] ?? 'N/A'); ?>
+                                    <a href="index.php?url=project/show&id=<?php echo $task['project_id']; ?>" 
+                                       class="text-blue-600 hover:text-blue-700 hover:underline">
+                                        <?php echo htmlspecialchars($task['project_name'] ?? 'N/A'); ?>
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                    <?php 
+                                    if (!empty($task['creator_first_name']) && !empty($task['creator_last_name'])) {
+                                        echo htmlspecialchars($task['creator_first_name'] . ' ' . $task['creator_last_name']);
+                                    } else {
+                                        echo '<span class="text-gray-400">N/A</span>';
+                                    }
+                                    ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-2.5 py-1 rounded-full text-xs font-medium <?php echo ($task['status_name'] == 'Done') ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'; ?>">
@@ -213,11 +226,13 @@
                                         <?php endif; ?>
                                         <a href="index.php?url=task/show&id=<?php echo $task['id']; ?>" 
                                            class="text-blue-600 hover:text-blue-700 font-medium transition-colors">Виж</a>
+                                        <?php if (isset($task['canEdit']) && $task['canEdit']): ?>
                                         <a href="index.php?url=task/edit&id=<?php echo $task['id']; ?>" 
                                            class="text-green-600 hover:text-green-700 font-medium transition-colors">Редактирай</a>
                                         <a href="index.php?url=task/delete&id=<?php echo $task['id']; ?>" 
                                            class="text-red-600 hover:text-red-700 font-medium transition-colors"
                                            onclick="return confirm('Сигурен ли си, че искаш да изтриеш тази задача?')">Изтрий</a>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>

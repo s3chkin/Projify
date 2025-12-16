@@ -16,8 +16,8 @@ class Task extends Model {
         try {
             $this->db->beginTransaction();
             
-            $sql = "INSERT INTO tasks (project_id, sprint_id, title, description, status_id, assignee_id, start_date, due_date, priority) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO tasks (project_id, sprint_id, title, description, status_id, assignee_id, created_by, start_date, due_date, priority) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $this->db->prepare($sql);
             
             $params = [
@@ -27,6 +27,7 @@ class Task extends Model {
                 empty($description) ? null : $description, 
                 $statusId, 
                 $assigneeId, 
+                $userId,
                 empty($startDate) ? null : $startDate, 
                 empty($dueDate) ? null : $dueDate, 
                 $priority
@@ -57,10 +58,13 @@ class Task extends Model {
     }
     
     public function getByProject($projectId) {
-        $sql = "SELECT t.*, s.name as status_name, s.order_index as status_order, u.first_name, u.last_name 
+        $sql = "SELECT t.*, s.name as status_name, s.order_index as status_order, 
+                u.first_name, u.last_name,
+                creator.first_name as creator_first_name, creator.last_name as creator_last_name
                 FROM tasks t
                 LEFT JOIN statuses s ON t.status_id = s.id
                 LEFT JOIN users u ON t.assignee_id = u.id
+                LEFT JOIN users creator ON t.created_by = creator.id
                 WHERE t.project_id = ? 
                 ORDER BY s.order_index ASC, t.priority ASC, t.id DESC";
         
@@ -109,11 +113,14 @@ class Task extends Model {
     }
     
     public function getById($id) {
-        $sql = "SELECT t.*, s.name as status_name, p.name as project_name, u.first_name, u.last_name 
+        $sql = "SELECT t.*, s.name as status_name, p.name as project_name, 
+                u.first_name, u.last_name,
+                creator.first_name as creator_first_name, creator.last_name as creator_last_name
                 FROM tasks t
                 LEFT JOIN statuses s ON t.status_id = s.id
                 LEFT JOIN projects p ON t.project_id = p.id
                 LEFT JOIN users u ON t.assignee_id = u.id
+                LEFT JOIN users creator ON t.created_by = creator.id
                 WHERE t.id = ?";
         
         try {
@@ -183,11 +190,14 @@ class Task extends Model {
     }
     
     public function search($query, $projectId = null, $statusId = null, $assigneeId = null, $userId = null, $isAdmin = false) {
-        $sql = "SELECT DISTINCT t.*, s.name as status_name, p.name as project_name, u.first_name, u.last_name 
+        $sql = "SELECT DISTINCT t.*, s.name as status_name, p.name as project_name, 
+                u.first_name, u.last_name,
+                creator.first_name as creator_first_name, creator.last_name as creator_last_name
                 FROM tasks t
                 LEFT JOIN statuses s ON t.status_id = s.id
                 LEFT JOIN projects p ON t.project_id = p.id
-                LEFT JOIN users u ON t.assignee_id = u.id";
+                LEFT JOIN users u ON t.assignee_id = u.id
+                LEFT JOIN users creator ON t.created_by = creator.id";
         
         $params = ["%$query%", "%$query%"];
         $whereConditions = ["(t.title LIKE ? OR t.description LIKE ?)"];
@@ -230,11 +240,14 @@ class Task extends Model {
     public function getPaginated($projectId = null, $page = 1, $perPage = 10, $statusId = null, $userId = null, $isAdmin = false) {
         $offset = ($page - 1) * $perPage;
         
-        $sql = "SELECT DISTINCT t.*, s.name as status_name, p.name as project_name, u.first_name, u.last_name 
+        $sql = "SELECT DISTINCT t.*, s.name as status_name, p.name as project_name, 
+                u.first_name, u.last_name,
+                creator.first_name as creator_first_name, creator.last_name as creator_last_name
                 FROM tasks t
                 LEFT JOIN statuses s ON t.status_id = s.id
                 LEFT JOIN projects p ON t.project_id = p.id
-                LEFT JOIN users u ON t.assignee_id = u.id";
+                LEFT JOIN users u ON t.assignee_id = u.id
+                LEFT JOIN users creator ON t.created_by = creator.id";
         
         $params = [];
         $whereConditions = [];

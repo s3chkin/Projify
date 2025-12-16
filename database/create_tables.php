@@ -104,15 +104,28 @@ $sql = "CREATE TABLE IF NOT EXISTS tasks (
     description TEXT,
     status_id INT NOT NULL,
     assignee_id INT,
+    created_by INT,
     start_date DATE,
     due_date DATE,
     priority INT CHECK (priority >= 1 AND priority <= 4),
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY (status_id) REFERENCES statuses(id),
     FOREIGN KEY (assignee_id) REFERENCES users(id),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
     CHECK (due_date IS NULL OR start_date IS NULL OR due_date >= start_date)
 )";
 mysqli_query($conn, $sql) or die("Error creating tasks table: " . mysqli_error($conn));
+
+// Добавяне на created_by колона ако таблицата вече съществува без нея
+$check = "SHOW COLUMNS FROM tasks LIKE 'created_by'";
+$result = mysqli_query($conn, $check);
+if (mysqli_num_rows($result) == 0) {
+    $sql = "ALTER TABLE tasks ADD COLUMN created_by INT NULL AFTER assignee_id";
+    @mysqli_query($conn, $sql);
+    
+    $sql = "ALTER TABLE tasks ADD FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL";
+    @mysqli_query($conn, $sql);
+}
 
 // Добавяне на CHECK constraints ако таблицата вече съществува
 $checkConstraint = "SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS 

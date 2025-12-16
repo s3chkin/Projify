@@ -21,6 +21,7 @@
                 </button>
             </form>
             <?php endif; ?>
+            <?php if (isset($canEdit) && $canEdit): ?>
             <a href="index.php?url=task/edit&id=<?php echo $task['id']; ?>" 
                class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors shadow-sm">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,6 +37,7 @@
                 </svg>
                 Изтрий
             </a>
+            <?php endif; ?>
             <?php endif; ?>
             <a href="index.php?url=task/index&project_id=<?php echo $task['project_id']; ?>" 
                class="px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors">
