@@ -246,32 +246,47 @@ class AdminController extends Controller {
             $db = Database::getConnection();
             
             try {
-                $db->beginTransaction();
-                
+                // Изтриваме проектите на потребителя
                 $userProjects = $projectModel->getByOwner($userId);
                 foreach ($userProjects as $project) {
-                    $projectModel->delete($project['id']);
+                    if (!$projectModel->delete($project['id'])) {
+                        throw new Exception("Неуспешно изтриване на проект: " . $project['id']);
+                    }
                 }
                 
+                // Премахваме потребителя от всички проекти
                 $allProjects = $projectModel->getAll();
                 foreach ($allProjects as $project) {
                     $projectMemberModel->remove($project['id'], $userId);
                 }
                 
+                // Премахваме потребителя от всички задачи (assignee_id = null)
                 $userTasks = $taskModel->getByAssignee($userId);
                 foreach ($userTasks as $task) {
-                    $taskModel->update($task['id'], $task['title'], $task['description'], $task['status_id'], null, $task['start_date'], $task['due_date'], $task['priority']);
+                    if (!$taskModel->update($task['id'], $task['title'], $task['description'], $task['status_id'], null, $task['start_date'], $task['due_date'], $task['priority'])) {
+                        throw new Exception("Неуспешно обновяване на задача: " . $task['id']);
+                    }
                 }
                 
+                // Изтриваме audit_logs записите за потребителя
+                $deleteAuditLogsSql = "DELETE FROM audit_logs WHERE user_id = ?";
+                $auditStmt = $db->prepare($deleteAuditLogsSql);
+                $auditStmt->execute([$userId]);
+                
+                // Накрая изтриваме самия потребител
                 $deleteSql = "DELETE FROM users WHERE id = ?";
                 $stmt = $db->prepare($deleteSql);
-                $stmt->execute([$userId]);
+                if (!$stmt->execute([$userId])) {
+                    throw new Exception("Неуспешно изтриване на потребителя");
+                }
                 
-                $db->commit();
                 $_SESSION['success'] = "Потребителят е изтрит успешно!";
             } catch (PDOException $e) {
-                $db->rollBack();
                 $_SESSION['error'] = "Грешка при изтриване на потребителя: " . $e->getMessage();
+                error_log("Error deleting user $userId: " . $e->getMessage());
+            } catch (Exception $e) {
+                $_SESSION['error'] = "Грешка при изтриване на потребителя: " . $e->getMessage();
+                error_log("Error deleting user $userId: " . $e->getMessage());
             }
         }
         

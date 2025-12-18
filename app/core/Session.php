@@ -35,4 +35,3 @@ class Session {
         session_destroy();
     }
 }
-

@@ -65,4 +65,3 @@ class PDFReport extends TCPDF {
         $this->SetFont('dejavusans', '', 10);
     }
 }
-

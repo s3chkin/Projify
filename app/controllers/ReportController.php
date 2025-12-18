@@ -209,6 +209,12 @@ class ReportController extends Controller {
     }
     
     public function exportUser() {
+        // Проверка за админ права
+        if (Session::get('user_role') !== 'admin') {
+            header('Location: index.php?url=home/index');
+            exit;
+        }
+        
         require_once "../app/core/PDFReport.php";
         require_once "../app/models/User.php";
         require_once "../app/models/Project.php";
@@ -323,6 +329,9 @@ class ReportController extends Controller {
     }
     
     private function getUserTasksByStatus($userId) {
+        require_once "../app/core/Database.php";
+        $db = Database::getConnection();
+        
         $sql = "SELECT s.name as status_name, COUNT(t.id) as task_count
                 FROM statuses s
                 LEFT JOIN tasks t ON s.id = t.status_id 
@@ -337,7 +346,7 @@ class ReportController extends Controller {
                 ORDER BY s.order_index";
         
         try {
-            $stmt = $this->reportModel->db->prepare($sql);
+            $stmt = $db->prepare($sql);
             $stmt->execute([$userId, $userId]);
             return $stmt->fetchAll();
         } catch (PDOException $e) {
@@ -346,6 +355,9 @@ class ReportController extends Controller {
     }
     
     private function getUserTasksByProject($userId) {
+        require_once "../app/core/Database.php";
+        $db = Database::getConnection();
+        
         $sql = "SELECT p.name as project_name, COUNT(t.id) as task_count
                 FROM projects p
                 INNER JOIN (
@@ -358,7 +370,7 @@ class ReportController extends Controller {
                 ORDER BY task_count DESC";
         
         try {
-            $stmt = $this->reportModel->db->prepare($sql);
+            $stmt = $db->prepare($sql);
             $stmt->execute([$userId, $userId]);
             return $stmt->fetchAll();
         } catch (PDOException $e) {
@@ -382,6 +394,9 @@ class ReportController extends Controller {
     }
     
     private function getUserWorkloadStats($userId) {
+        require_once "../app/core/Database.php";
+        $db = Database::getConnection();
+        
         $sql = "SELECT 
                     COUNT(t.id) as total_tasks,
                     COUNT(CASE WHEN s.name = 'Done' THEN 1 END) as completed_tasks,
@@ -396,7 +411,7 @@ class ReportController extends Controller {
                 )";
         
         try {
-            $stmt = $this->reportModel->db->prepare($sql);
+            $stmt = $db->prepare($sql);
             $stmt->execute([$userId, $userId]);
             return $stmt->fetch();
         } catch (PDOException $e) {
